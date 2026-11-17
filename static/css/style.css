@@ -115,3 +115,22 @@ body { font-family:Inter,system-ui,sans-serif; background:var(--bg); color:#1d29
   .student-scan-details { grid-template-columns: 1fr; }
   .qr-view-card { padding: 20px; }
 }
+
+
+/* Scanner view rotation (display-only; QR decoding continues on the camera stream). */
+#reader {
+  --camera-rotation: 0deg;
+}
+#reader video {
+  transform: rotate(var(--camera-rotation));
+  transform-origin: center center;
+  transition: transform .22s ease;
+}
+#reader.camera-rotated {
+  overflow: hidden;
+  border-radius: 12px;
+}
+#rotate-camera {
+  min-width: 190px;
+  font-weight: 600;
+}
