@@ -3,6 +3,9 @@
 {% block content %}
 <div class="page-heading"><div><span class="eyebrow">QUICK CHECK-IN</span><h1>QR attendance scanner</h1><p>Scan a student's QR code. Verify the student's identity before saving attendance.</p></div></div>
 <div class="content-card scanner-card">
+  {% if not session_open %}
+  <div class="alert alert-warning mb-0"><h2 class="h5">Attendance is closed</h2><p class="mb-0">The teacher must save today's date and cutoff times, then open the attendance session before QR scanning can begin.</p></div>
+  {% else %}
   <div class="d-flex flex-wrap gap-2 justify-content-center mb-3">
     <button type="button" id="rotate-camera" class="btn btn-outline-primary"><span aria-hidden="true">↻</span> Rotate camera view</button>
   </div>
@@ -22,9 +25,12 @@
       <button type="button" id="cancel-scan" class="btn btn-outline-secondary">Cancel scan</button>
     </div>
   </section>
+  {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
+{% if session_open %}
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="{{ url_for('static', filename='js/qr-scanner.js') }}"></script>
+{% endif %}
 {% endblock %}
