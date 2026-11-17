@@ -4,6 +4,7 @@ import os
 import secrets
 import sqlite3
 from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
 from functools import wraps
 from pathlib import Path
 
@@ -24,7 +25,58 @@ app.config.update(
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
 )
 
-PRESENT_CUTOFF = time(8, 0)
+SCHOOL_TZ = ZoneInfo("Asia/Manila")
+DEFAULT_PRESENT_CUTOFF = "07:30"
+DEFAULT_LATE_CUTOFF = "08:00"
+DEFAULT_ABSENT_CUTOFF = "08:01"
+
+
+def school_now():
+    return datetime.now(SCHOOL_TZ)
+
+
+def get_schedule(db=None):
+    own_connection = db is None
+    connection = db or get_db()
+    try:
+        row = connection.execute(
+            "SELECT present_cutoff, late_cutoff, absent_cutoff FROM attendance_schedule WHERE id=1"
+        ).fetchone()
+        if row is None:
+            return {"present_cutoff": DEFAULT_PRESENT_CUTOFF,
+                    "late_cutoff": DEFAULT_LATE_CUTOFF,
+                    "absent_cutoff": DEFAULT_ABSENT_CUTOFF}
+        return dict(row)
+    finally:
+        if own_connection:
+            connection.close()
+
+
+def process_daily_absences():
+    """Idempotently add today's Absent rows once the school-wide cutoff passes.
+
+    Called during normal requests. For an exact-time guarantee during quiet periods,
+    configure an external/Render scheduled job to call the protected maintenance task.
+    """
+    now = school_now()
+    today = now.date().isoformat()
+    with get_db() as db:
+        schedule = get_schedule(db)
+        cutoff = time.fromisoformat(schedule["absent_cutoff"])
+        if now.time().replace(tzinfo=None) < cutoff:
+            return 0
+        absent_time = cutoff.strftime("%H:%M:%S")
+        students = db.execute("SELECT id FROM users WHERE role='student'").fetchall()
+        inserted = 0
+        for student in students:
+            cursor = db.execute(
+                """INSERT OR IGNORE INTO attendance
+                   (user_id, attendance_date, check_in, status, method)
+                   VALUES (?, ?, ?, 'Absent', 'Automatic')""",
+                (student["id"], today, absent_time)
+            )
+            inserted += cursor.rowcount
+        return inserted
 
 
 def get_db():
@@ -57,7 +109,30 @@ def init_db():
             method TEXT NOT NULL DEFAULT 'Manual',
             UNIQUE(user_id, attendance_date)
         );
+        CREATE TABLE IF NOT EXISTS attendance_schedule (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            present_cutoff TEXT NOT NULL,
+            late_cutoff TEXT NOT NULL,
+            absent_cutoff TEXT NOT NULL,
+            updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS attendance_schedule_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            present_cutoff TEXT NOT NULL,
+            late_cutoff TEXT NOT NULL,
+            absent_cutoff TEXT NOT NULL,
+            changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            changed_at TEXT NOT NULL
+        );
         """)
+        db.execute(
+            """INSERT OR IGNORE INTO attendance_schedule
+               (id, present_cutoff, late_cutoff, absent_cutoff, updated_at)
+               VALUES (1, ?, ?, ?, ?)""",
+            (DEFAULT_PRESENT_CUTOFF, DEFAULT_LATE_CUTOFF, DEFAULT_ABSENT_CUTOFF,
+             datetime.now(SCHOOL_TZ).isoformat(timespec="seconds"))
+        )
         # Compatibility for databases created by the starter version.
         columns = {row["name"] for row in db.execute("PRAGMA table_info(users)")}
         if "student_id" not in columns:
@@ -159,15 +234,26 @@ def roles_required(*roles):
     return decorator
 
 
-def attendance_status(check_time=None):
-    check_time = check_time or datetime.now().time()
-    return "Present" if check_time <= PRESENT_CUTOFF else "Late"
+def attendance_status(check_time=None, schedule=None):
+    check_time = check_time or school_now().time().replace(tzinfo=None)
+    schedule = schedule or get_schedule()
+    present_cutoff = time.fromisoformat(schedule["present_cutoff"])
+    late_cutoff = time.fromisoformat(schedule["late_cutoff"])
+    if check_time <= present_cutoff:
+        return "Present"
+    if check_time <= late_cutoff:
+        return "Late"
+    return None
 
 
 def record_attendance(user, method):
-    now = datetime.now()
-    today = date.today().isoformat()
-    status = attendance_status(now.time())
+    now = school_now()
+    today = now.date().isoformat()
+    with get_db() as db:
+        schedule = get_schedule(db)
+    status = attendance_status(now.time().replace(tzinfo=None), schedule)
+    if status is None:
+        return False, "The attendance cutoff has passed. Please contact a teacher for manual attendance.", None
     try:
         with get_db() as db:
             db.execute(
@@ -183,7 +269,8 @@ def record_attendance(user, method):
 
 @app.context_processor
 def inject_globals():
-    return {"current_user": get_current_user(), "today": date.today().isoformat()}
+    process_daily_absences()
+    return {"current_user": get_current_user(), "today": school_now().date().isoformat()}
 
 
 @app.route("/")
@@ -433,10 +520,57 @@ def manual_attendance():
     return redirect(url_for("attendance", date=selected_date))
 
 
+@app.route("/attendance-schedule", methods=["GET", "POST"])
+@roles_required("admin", "teacher")
+def attendance_schedule():
+    if request.method == "POST":
+        values = {
+            "present_cutoff": request.form.get("present_cutoff", "").strip(),
+            "late_cutoff": request.form.get("late_cutoff", "").strip(),
+            "absent_cutoff": request.form.get("absent_cutoff", "").strip(),
+        }
+        try:
+            present = time.fromisoformat(values["present_cutoff"])
+            late = time.fromisoformat(values["late_cutoff"])
+            absent = time.fromisoformat(values["absent_cutoff"])
+        except ValueError:
+            flash("Enter valid cutoff times.", "danger")
+            return redirect(url_for("attendance_schedule"))
+        if not (present < late < absent):
+            flash("Times must be in order: Present cutoff, Late cutoff, then Absent cutoff.", "danger")
+            return redirect(url_for("attendance_schedule"))
+        changed_at = school_now().isoformat(timespec="seconds")
+        user_id = session.get("user_id")
+        with get_db() as db:
+            db.execute(
+                """INSERT INTO attendance_schedule_history
+                   (present_cutoff, late_cutoff, absent_cutoff, changed_by, changed_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (values["present_cutoff"], values["late_cutoff"], values["absent_cutoff"], user_id, changed_at)
+            )
+            db.execute(
+                """UPDATE attendance_schedule
+                   SET present_cutoff=?, late_cutoff=?, absent_cutoff=?, updated_by=?, updated_at=?
+                   WHERE id=1""",
+                (values["present_cutoff"], values["late_cutoff"], values["absent_cutoff"], user_id, changed_at)
+            )
+        flash("School-wide attendance schedule updated. Existing attendance records were not changed.", "success")
+        return redirect(url_for("attendance_schedule"))
+    with get_db() as db:
+        schedule = get_schedule(db)
+        history = db.execute(
+            """SELECT h.*, u.full_name AS changed_by_name
+               FROM attendance_schedule_history h LEFT JOIN users u ON u.id=h.changed_by
+               ORDER BY h.id DESC LIMIT 8"""
+        ).fetchall()
+    return render_template("attendance_schedule.html", schedule=schedule, history=history)
+
+
 @app.route("/scan")
 @roles_required("admin", "teacher")
 def scan():
-    return render_template("scan.html")
+    process_daily_absences()
+    return render_template("scan.html", schedule=get_schedule())
 
 
 @app.route("/api/scan/preview", methods=["POST"])
@@ -457,6 +591,7 @@ def api_scan_preview():
             "SELECT status, check_in FROM attendance WHERE user_id=? AND attendance_date=?",
             (student["id"], date.today().isoformat())
         ).fetchone()
+    process_daily_absences()
     return {
         "ok": True, "student_id": student["student_id"],
         "full_name": student["full_name"],
