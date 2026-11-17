@@ -1,9 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · AttendEase{% endblock %}
+{% block title %}Dashboard · AttendEase{% if current_user.role == "admin" %}
+<div class="modal fade" id="resetDataModal" tabindex="-1" aria-labelledby="resetDataTitle" aria-hidden="true">
+ <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('reset_all_data') }}">
+  <div class="modal-header"><h2 class="modal-title fs-5 text-danger" id="resetDataTitle">Reset all system data?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+  <div class="modal-body"><p><strong>This cannot be undone.</strong> All attendance records and history, schedules, sessions, and student history visibility settings will be cleared. Accounts created after setup will also be deleted.</p>
+  <p>The four built-in accounts (Admin, Teacher, Juan, and Maria) and their login credentials will remain. Their attendance history will be erased.</p>
+  <label class="form-label" for="resetConfirmation">Type <strong>RESET</strong> to confirm.</label><input class="form-control" id="resetConfirmation" name="confirm_reset" required pattern="RESET" autocomplete="off" placeholder="RESET"></div>
+  <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-danger">Permanently reset data</button></div>
+ </form></div></div>
+</div>
+{% endif %}
+{% endblock %}
 {% block content %}
 <div class="page-heading">
   <div><span class="eyebrow">OVERVIEW</span><h1>Attendance dashboard</h1><p>Monitor student attendance for today.</p></div>
-  <div class="date-chip">Today · {{ today }}</div>
+  <div class="d-flex flex-wrap align-items-center gap-2"><div class="date-chip">Today · {{ today }}</div>{% if current_user.role == "admin" %}<button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#resetDataModal">Reset all data</button>{% endif %}</div>
 </div>
 <div class="row g-3 mb-4">
   <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Registered students</div><div class="stat-value">{{ total }}</div><div class="stat-foot">Active student accounts</div></div></div>
