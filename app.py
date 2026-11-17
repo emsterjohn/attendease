@@ -36,7 +36,7 @@ def school_now():
 
 
 def get_schedule(db=None, attendance_date=None):
-    """Return the cutoff settings saved for one school date."""
+    """Return a schedule only when a teacher saved one for this date."""
     own_connection = db is None
     connection = db or get_db()
     target_date = attendance_date or school_now().date().isoformat()
@@ -46,20 +46,18 @@ def get_schedule(db=None, attendance_date=None):
                FROM attendance_schedules WHERE attendance_date=?""",
             (target_date,)
         ).fetchone()
-        if row:
-            return dict(row)
-        # Keep the old prototype's saved schedule as a migration fallback.
-        legacy = connection.execute(
-            "SELECT present_cutoff, late_cutoff, absent_cutoff FROM attendance_schedule WHERE id=1"
-        ).fetchone()
-        return dict(legacy) if legacy else {
-            "present_cutoff": DEFAULT_PRESENT_CUTOFF,
-            "late_cutoff": DEFAULT_LATE_CUTOFF,
-            "absent_cutoff": DEFAULT_ABSENT_CUTOFF,
-        }
+        return dict(row) if row else None
     finally:
         if own_connection:
             connection.close()
+
+
+def get_attendance_session(db, attendance_date):
+    row = db.execute(
+        "SELECT status FROM attendance_sessions WHERE attendance_date=?",
+        (attendance_date,)
+    ).fetchone()
+    return row["status"] if row else "Closed"
 
 
 def process_daily_absences():
@@ -71,7 +69,11 @@ def process_daily_absences():
     now = school_now()
     today = now.date().isoformat()
     with get_db() as db:
+        if get_attendance_session(db, today) != "Open":
+            return 0
         schedule = get_schedule(db, today)
+        if not schedule:
+            return 0
         cutoff = time.fromisoformat(schedule["absent_cutoff"])
         if now.time().replace(tzinfo=None) < cutoff:
             return 0
@@ -142,6 +144,20 @@ def init_db():
             absent_cutoff TEXT NOT NULL,
             updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
             updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS attendance_sessions (
+            attendance_date TEXT PRIMARY KEY,
+            status TEXT NOT NULL DEFAULT 'Closed' CHECK(status IN ('Open','Closed')),
+            opened_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            opened_at TEXT,
+            closed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            closed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS student_hidden_absences (
+            student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            attendance_id INTEGER NOT NULL REFERENCES attendance(id) ON DELETE CASCADE,
+            hidden_at TEXT NOT NULL,
+            PRIMARY KEY(student_id, attendance_id)
         );
         """)
         db.execute(
@@ -268,7 +284,11 @@ def record_attendance(user, method):
     now = school_now()
     today = now.date().isoformat()
     with get_db() as db:
-        schedule = get_schedule(db)
+        if get_attendance_session(db, today) != "Open":
+            return False, "Attendance is currently closed by the teacher.", None
+        schedule = get_schedule(db, today)
+    if not schedule:
+        return False, "The teacher has not configured attendance for today.", None
     status = attendance_status(now.time().replace(tzinfo=None), schedule)
     if status is None:
         return False, "The attendance cutoff has passed. Please contact a teacher for manual attendance.", None
@@ -389,8 +409,12 @@ def dashboard():
                 absent=absent, not_recorded=not_recorded, recent=recent
             )
         mine = db.execute(
-            """SELECT * FROM attendance WHERE user_id=?
-            ORDER BY attendance_date DESC LIMIT 30""", (user["id"],)
+            """SELECT a.* FROM attendance a
+            WHERE a.user_id=? AND NOT EXISTS (
+                SELECT 1 FROM student_hidden_absences h
+                WHERE h.student_id=a.user_id AND h.attendance_id=a.id
+            )
+            ORDER BY a.attendance_date DESC LIMIT 30""", (user["id"],)
         ).fetchall()
         counts = {s: sum(r["status"] == s for r in mine)
                   for s in ("Present", "Late", "Absent")}
@@ -403,10 +427,35 @@ def profile():
     user = get_current_user()
     with get_db() as db:
         records = db.execute(
-            """SELECT * FROM attendance WHERE user_id=?
-            ORDER BY attendance_date DESC LIMIT 30""", (user["id"],)
+            """SELECT a.* FROM attendance a
+            WHERE a.user_id=? AND NOT EXISTS (
+                SELECT 1 FROM student_hidden_absences h
+                WHERE h.student_id=a.user_id AND h.attendance_id=a.id
+            )
+            ORDER BY a.attendance_date DESC LIMIT 30""", (user["id"],)
         ).fetchall()
     return render_template("profile.html", user=user, records=records)
+
+
+@app.route("/profile/attendance/<int:record_id>/hide", methods=["POST"])
+@roles_required("student")
+def hide_own_absence(record_id):
+    user = get_current_user()
+    with get_db() as db:
+        record = db.execute(
+            "SELECT id FROM attendance WHERE id=? AND user_id=? AND status='Absent'",
+            (record_id, user["id"])
+        ).fetchone()
+        if not record:
+            flash("Only your own Absent records can be hidden.", "warning")
+            return redirect(url_for("profile"))
+        db.execute(
+            """INSERT OR IGNORE INTO student_hidden_absences
+               (student_id, attendance_id, hidden_at) VALUES (?, ?, ?)""",
+            (user["id"], record_id, school_now().isoformat(timespec="seconds"))
+        )
+    flash("Absent record hidden from your personal dashboard only.", "success")
+    return redirect(url_for("profile"))
 
 
 @app.route("/users")
@@ -494,8 +543,18 @@ def attendance():
             "SELECT id, student_id, full_name FROM users WHERE role='student' ORDER BY full_name"
         ).fetchall()
         schedule = get_schedule(db, selected_date)
+        session_status = get_attendance_session(db, selected_date)
+        schedule_saved = schedule is not None
+        if not schedule:
+            schedule = {
+                "present_cutoff": DEFAULT_PRESENT_CUTOFF,
+                "late_cutoff": DEFAULT_LATE_CUTOFF,
+                "absent_cutoff": DEFAULT_ABSENT_CUTOFF,
+            }
     return render_template("attendance.html", records=rows, students=student_rows,
-                           selected_date=selected_date, schedule=schedule)
+                           selected_date=selected_date, schedule=schedule,
+                           schedule_saved=schedule_saved, session_status=session_status,
+                           is_today=(selected_date == school_now().date().isoformat()))
 
 
 @app.route("/attendance/schedule", methods=["POST"])
@@ -533,7 +592,54 @@ def save_attendance_schedule():
             (selected_date, values["present_cutoff"], values["late_cutoff"],
              values["absent_cutoff"], session.get("user_id"), changed_at)
         )
-    flash(f"Attendance schedule saved for {selected_date}. Previous dates remain unchanged.", "success")
+    flash(f"Attendance schedule saved for {selected_date}. You can now open this date's session.", "success")
+    return redirect(url_for("attendance", date=selected_date))
+
+
+@app.route("/attendance/session/open", methods=["POST"])
+@roles_required("admin", "teacher")
+def open_attendance_session():
+    selected_date = request.form.get("attendance_date", "").strip()
+    try:
+        date.fromisoformat(selected_date)
+    except ValueError:
+        abort(400)
+    if selected_date != school_now().date().isoformat():
+        flash("A session can only be opened on its scheduled school date. You may configure future dates in advance.", "warning")
+        return redirect(url_for("attendance", date=selected_date))
+    with get_db() as db:
+        db.execute(
+            """INSERT INTO attendance_sessions
+               (attendance_date, status, opened_by, opened_at, closed_by, closed_at)
+               VALUES (?, 'Open', ?, ?, NULL, NULL)
+               ON CONFLICT(attendance_date) DO UPDATE SET
+                 status='Open', opened_by=excluded.opened_by,
+                 opened_at=excluded.opened_at, closed_by=NULL, closed_at=NULL""",
+            (selected_date, session.get("user_id"), school_now().isoformat(timespec="seconds"))
+        )
+    flash("Attendance is now OPEN. QR scanning and attendance marking are enabled.", "success")
+    return redirect(url_for("attendance", date=selected_date))
+
+
+@app.route("/attendance/session/close", methods=["POST"])
+@roles_required("admin", "teacher")
+def close_attendance_session():
+    selected_date = request.form.get("attendance_date", "").strip()
+    try:
+        date.fromisoformat(selected_date)
+    except ValueError:
+        abort(400)
+    with get_db() as db:
+        db.execute(
+            """INSERT INTO attendance_sessions
+               (attendance_date, status, closed_by, closed_at)
+               VALUES (?, 'Closed', ?, ?)
+               ON CONFLICT(attendance_date) DO UPDATE SET
+                 status='Closed', closed_by=excluded.closed_by,
+                 closed_at=excluded.closed_at""",
+            (selected_date, session.get("user_id"), school_now().isoformat(timespec="seconds"))
+        )
+    flash("Attendance is now CLOSED. Further QR and manual marking are blocked.", "info")
     return redirect(url_for("attendance", date=selected_date))
 
 
@@ -552,22 +658,6 @@ def student_profile(user_id):
             (user_id,)
         ).fetchall()
     return render_template("student_profile.html", student=student, records=records)
-
-
-@app.route("/users/<int:user_id>/attendance/<int:record_id>/remove-absence", methods=["POST"])
-@roles_required("admin", "teacher")
-def remove_student_absence(user_id, record_id):
-    with get_db() as db:
-        cursor = db.execute(
-            """DELETE FROM attendance WHERE id=? AND user_id=? AND status='Absent'
-               AND user_id IN (SELECT id FROM users WHERE role='student')""",
-            (record_id, user_id)
-        )
-    if cursor.rowcount:
-        flash("Absent record removed. Student and staff dashboards now reflect the change.", "success")
-    else:
-        flash("Only an existing Absent record can be removed.", "warning")
-    return redirect(url_for("student_profile", user_id=user_id))
 
 
 @app.route("/attendance/<int:record_id>/delete", methods=["POST"])
@@ -592,6 +682,9 @@ def manual_attendance():
     if status not in ("Present", "Late", "Absent"):
         abort(400)
     with get_db() as db:
+        if get_attendance_session(db, selected_date) != "Open" or not get_schedule(db, selected_date):
+            flash("Open attendance and save a schedule for this date before marking attendance.", "danger")
+            return redirect(url_for("attendance", date=selected_date))
         student = db.execute(
             "SELECT id FROM users WHERE id=? AND role='student'", (user_id,)
         ).fetchone()
@@ -639,8 +732,18 @@ def scheduled_absence_task():
 @app.route("/scan")
 @roles_required("admin", "teacher")
 def scan():
+    today = school_now().date().isoformat()
     process_daily_absences()
-    return render_template("scan.html", schedule=get_schedule())
+    with get_db() as db:
+        schedule = get_schedule(db, today)
+        session_open = get_attendance_session(db, today) == "Open" and schedule is not None
+    if not schedule:
+        schedule = {
+            "present_cutoff": DEFAULT_PRESENT_CUTOFF,
+            "late_cutoff": DEFAULT_LATE_CUTOFF,
+            "absent_cutoff": DEFAULT_ABSENT_CUTOFF,
+        }
+    return render_template("scan.html", schedule=schedule, session_open=session_open)
 
 
 @app.route("/api/scan/preview", methods=["POST"])
@@ -650,6 +753,10 @@ def api_scan_preview():
     token = str(payload.get("token", "")).strip()
     if not token:
         return {"ok": False, "message": "No QR token was received."}, 400
+    today = school_now().date().isoformat()
+    with get_db() as db:
+        if get_attendance_session(db, today) != "Open" or not get_schedule(db, today):
+            return {"ok": False, "message": "Attendance is closed or has not been configured by the teacher."}, 403
     process_daily_absences()
     with get_db() as db:
         student = db.execute(
@@ -678,7 +785,10 @@ def api_scan():
     token = str(payload.get("token", "")).strip()
     if not token:
         return {"ok": False, "message": "No QR token was received."}, 400
+    today = school_now().date().isoformat()
     with get_db() as db:
+        if get_attendance_session(db, today) != "Open" or not get_schedule(db, today):
+            return {"ok": False, "message": "Attendance is closed or has not been configured by the teacher."}, 403
         student = db.execute(
             "SELECT * FROM users WHERE qr_token=? AND role='student'", (token,)
         ).fetchone()
