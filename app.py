@@ -577,10 +577,6 @@ def save_attendance_schedule():
     if not (present < late < absent):
         flash("Cutoff times must be ordered: Present, then Late, then Absent.", "danger")
         return redirect(url_for("attendance", date=selected_date))
-    with get_db() as db:
-        if get_attendance_session(db, selected_date) == "Open":
-            flash("Close this attendance session before changing its schedule.", "warning")
-            return redirect(url_for("attendance", date=selected_date))
     changed_at = school_now().isoformat(timespec="seconds")
     with get_db() as db:
         db.execute(
@@ -612,10 +608,6 @@ def open_attendance_session():
         flash("A session can only be opened on its scheduled school date. You may configure future dates in advance.", "warning")
         return redirect(url_for("attendance", date=selected_date))
     with get_db() as db:
-        schedule = get_schedule(db, selected_date)
-        if not schedule:
-            flash("Save a valid date and all three cutoff times before opening attendance.", "danger")
-            return redirect(url_for("attendance", date=selected_date))
         db.execute(
             """INSERT INTO attendance_sessions
                (attendance_date, status, opened_by, opened_at, closed_by, closed_at)
