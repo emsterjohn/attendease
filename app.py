@@ -595,6 +595,7 @@ def api_scan_preview():
     token = str(payload.get("token", "")).strip()
     if not token:
         return {"ok": False, "message": "No QR token was received."}, 400
+    process_daily_absences()
     with get_db() as db:
         student = db.execute(
             "SELECT id, student_id, full_name FROM users WHERE qr_token=? AND role='student'",
@@ -606,7 +607,6 @@ def api_scan_preview():
             "SELECT status, check_in FROM attendance WHERE user_id=? AND attendance_date=?",
             (student["id"], school_now().date().isoformat())
         ).fetchone()
-    process_daily_absences()
     return {
         "ok": True, "student_id": student["student_id"],
         "full_name": student["full_name"],
