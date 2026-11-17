@@ -668,22 +668,6 @@ def student_profile(user_id):
     return render_template("student_profile.html", student=student, records=records)
 
 
-@app.route("/users/<int:user_id>/attendance/<int:record_id>/remove-absence", methods=["POST"])
-@roles_required("admin", "teacher")
-def remove_student_absence(user_id, record_id):
-    with get_db() as db:
-        cursor = db.execute(
-            """DELETE FROM attendance WHERE id=? AND user_id=? AND status='Absent'
-               AND user_id IN (SELECT id FROM users WHERE role='student')""",
-            (record_id, user_id)
-        )
-    if cursor.rowcount:
-        flash("Absent record removed. Student and staff dashboards now reflect the change.", "success")
-    else:
-        flash("Only an existing Absent record can be removed.", "warning")
-    return redirect(url_for("student_profile", user_id=user_id))
-
-
 @app.route("/attendance/<int:record_id>/delete", methods=["POST"])
 @roles_required("admin", "teacher")
 def delete_attendance(record_id):
