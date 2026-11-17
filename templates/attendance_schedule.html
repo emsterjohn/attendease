@@ -8,11 +8,11 @@
 <div class="content-card mb-4">
   <form method="post">
     <div class="row g-3">
-      <div class="col-md-4"><label class="form-label fw-semibold" for="present_cutoff">Present cutoff</label><input class="form-control" type="time" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">Scans at or before this time are Present.</div></div>
-      <div class="col-md-4"><label class="form-label fw-semibold" for="late_cutoff">Late cutoff</label><input class="form-control" type="time" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">Scans after Present and at or before this time are Late.</div></div>
-      <div class="col-md-4"><label class="form-label fw-semibold" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="time" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">Students without a record are marked Absent at this time.</div></div>
+      <div class="col-md-4"><label class="form-label fw-semibold" for="present_cutoff">Present cutoff</label><input class="form-control" type="time" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required></div>
+      <div class="col-md-4"><label class="form-label fw-semibold" for="late_cutoff">Late cutoff</label><input class="form-control" type="time" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required></div>
+      <div class="col-md-4"><label class="form-label fw-semibold" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="time" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required></div>
     </div>
-    <div class="alert alert-info mt-4 mb-3">Changes apply school-wide. Existing attendance records are preserved and are not silently reclassified.</div>
+    
     <button class="btn btn-primary" type="submit">Save school-wide schedule</button>
   </form>
 </div>
