@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · AttendEase{% endblock %}
+{% block content %}<div class="content-card text-center py-5"><div class="display-3 fw-bold text-primary">{{ code }}</div><h1 class="h4">{{ message }}</h1><a class="btn btn-primary mt-3" href="{{ url_for('dashboard') }}">Back to dashboard</a></div>{% endblock %}

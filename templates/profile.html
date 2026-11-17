@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}My Profile · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">STUDENT PORTAL</span><h1>My profile</h1><p>Your account details and personal attendance QR code.</p></div></div>
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="content-card h-100">
+      <div class="profile-avatar">{{ user.full_name[:1]|upper }}</div>
+      <h2 class="section-title text-center mt-3">{{ user.full_name }}</h2>
+      <div class="profile-details mt-4">
+        <div><span>Student ID</span><strong>{{ user.student_id }}</strong></div>
+        <div><span>Account type</span><strong>Student</strong></div>
+      </div>
+      <div class="text-center mt-4">
+        <img class="qr-preview" src="{{ url_for('my_qr_preview') }}" alt="Your attendance QR code">
+        <p class="small text-secondary mt-2">Show this QR code to your teacher for attendance scanning.</p>
+        <a class="btn btn-primary" href="{{ url_for('my_qr_view') }}">View my QR code</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="content-card">
+      <h2 class="section-title mb-3">My recent attendance</h2>
+      <div class="table-responsive"><table class="table">
+        <thead><tr><th>Date</th><th>Check-in</th><th>Status</th><th>Method</th></tr></thead>
+        <tbody>{% for r in records %}<tr><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
+        {% else %}<tr><td colspan="4" class="empty-state">No attendance history yet.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Users · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">ACCOUNT DIRECTORY</span><h1>Users</h1><p>{% if current_user.role == 'admin' %}Manage registered student and teacher accounts.{% else %}View the registered student directory and their QR codes.{% endif %}</p></div>
+{% if current_user.role == 'teacher' %}<a class="btn btn-primary" href="{{ url_for('scan') }}">Scan student QR</a>{% endif %}</div>
+{% if current_user.role == 'admin' %}
+<div class="content-card mb-4">
+  <h2 class="section-title mb-3">Create user account</h2>
+  <form method="post" action="{{ url_for('create_user') }}" class="row g-3 align-items-end">
+    <div class="col-md-2"><label class="form-label">Role</label><select class="form-select" name="role"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
+    <div class="col-md-2"><label class="form-label">Student / Account ID</label><input class="form-control" name="student_id" required></div>
+    <div class="col-md-4"><label class="form-label">Full name</label><input class="form-control" name="full_name" required></div>
+    <div class="col-md-3"><label class="form-label">Temporary password</label><input class="form-control" type="password" name="password" minlength="8" required></div>
+    <div class="col-md-1"><button class="btn btn-primary w-100">Add</button></div>
+  </form>
+  <p class="small text-secondary mt-2 mb-0">Use a unique ID for every account. Passwords must contain at least 8 characters.</p>
+</div>
+{% endif %}
+<div class="content-card">
+  <div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Account ID</th><th>Full name</th><th>Role</th><th>QR code</th>{% if current_user.role == 'admin' %}<th>Action</th>{% endif %}</tr></thead>
+    <tbody>{% for u in students %}<tr>
+      <td>{{ u.student_id }}</td><td class="fw-semibold">{{ u.full_name }}</td><td>{{ u.role|title }}</td>
+      <td>{% if u.role == 'student' %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('student_qr', user_id=u.id) }}">View QR</a>{% else %}<span class="text-secondary">Not applicable</span>{% endif %}</td>
+      {% if current_user.role == 'admin' %}<td><form method="post" action="{{ url_for('delete_user', user_id=u.id) }}" onsubmit="return confirm('Delete this {{ u.role }} account and its linked attendance records?')"><button class="btn btn-sm btn-outline-danger">Delete</button></form></td>{% endif %}
+    </tr>{% else %}<tr><td colspan="5" class="empty-state">No user accounts registered yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}
+{% block scripts %}{% if current_user.role == 'teacher' %}<script src="{{ url_for('static', filename='js/student-refresh.js') }}"></script>{% endif %}{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}My Attendance · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">STUDENT PORTAL</span><h1>My attendance</h1><p>Review your attendance summary and history.</p></div><a class="btn btn-primary" href="{{ url_for('profile') }}">View my profile</a></div>
+<div class="row g-3 mb-4">
+{% for label, value, color in [('Present',counts.Present,'success'),('Late',counts.Late,'warning'),('Absent',counts.Absent,'danger')] %}
+<div class="col-4"><div class="stat-card"><div class="stat-label">{{ label }}</div><div class="stat-value text-{{ color }}">{{ value }}</div></div></div>
+{% endfor %}
+</div>
+<div class="content-card"><h2 class="section-title mb-3">Attendance history</h2><div class="table-responsive"><table class="table">
+<thead><tr><th>Date</th><th>Check-in</th><th>Status</th><th>Method</th></tr></thead><tbody>
+{% for r in records %}<tr><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
+{% else %}<tr><td colspan="4" class="empty-state">No attendance history yet.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

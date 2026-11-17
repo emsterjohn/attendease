@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}QR Scanner · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">QUICK CHECK-IN</span><h1>QR attendance scanner</h1><p>Scan a student's QR code. Verify the student's identity before saving attendance.</p></div></div>
+<div class="content-card scanner-card">
+  <div id="reader"></div>
+  <div class="small text-secondary mt-3">Camera scanning requires HTTPS on deployed websites (localhost is also allowed by most browsers).</div>
+  <div id="scan-result" class="alert mt-3 d-none" role="status" aria-live="polite"></div>
+  <section id="scan-confirmation" class="scan-confirmation mt-3 d-none" aria-live="polite">
+    <h2 class="section-title">Confirm student identity</h2>
+    <p class="text-secondary mb-3">Check that this is the correct student before recording attendance.</p>
+    <div class="student-scan-details">
+      <div><span>Student name</span><strong id="scanned-name">—</strong></div>
+      <div><span>Student ID</span><strong id="scanned-id">—</strong></div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <button type="button" id="confirm-scan" class="btn btn-primary">Confirm attendance</button>
+      <button type="button" id="cancel-scan" class="btn btn-outline-secondary">Cancel scan</button>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/qr-scanner.js') }}"></script>
+{% endblock %}

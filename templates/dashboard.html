@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><span class="eyebrow">OVERVIEW</span><h1>Attendance dashboard</h1><p>Monitor student attendance for today.</p></div>
+  <div class="date-chip">Today · {{ today }}</div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Registered students</div><div class="stat-value">{{ total }}</div><div class="stat-foot">Active student accounts</div></div></div>
+  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Present</div><div class="stat-value text-success">{{ present }}</div><div class="stat-foot">Checked in by 8:00 AM</div></div></div>
+  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Late</div><div class="stat-value text-warning">{{ late }}</div><div class="stat-foot">Checked in after 8:00 AM</div></div></div>
+  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Not recorded</div><div class="stat-value text-secondary">{{ not_recorded }}</div><div class="stat-foot">No attendance entry yet</div></div></div>
+</div>
+<div class="content-card">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><h2 class="section-title">Recent attendance</h2><p class="text-secondary small mb-0">Latest student check-ins</p></div>
+    <a class="btn btn-primary" href="{{ url_for('scan') }}">Open QR scanner</a>
+  </div>
+  <div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Student</th><th>Student ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th></tr></thead>
+    <tbody>{% for r in recent %}<tr><td class="fw-semibold">{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
+    {% else %}<tr><td colspan="6" class="empty-state">No attendance records yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

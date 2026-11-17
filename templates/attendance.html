@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Attendance · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">RECORDS</span><h1>Attendance management</h1><p>Record attendance manually or use the QR scanner.</p></div><a class="btn btn-primary" href="{{ url_for('scan') }}">Scan QR code</a></div>
+<div class="content-card mb-4"><h2 class="section-title mb-3">Manual attendance</h2>
+<form method="post" action="{{ url_for('manual_attendance') }}" class="row g-3 align-items-end">
+<div class="col-md-5"><label class="form-label">Student</label><select class="form-select" name="user_id" required><option value="">Choose student</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_id }} — {{ s.full_name }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="attendance_date" value="{{ selected_date }}" required></div>
+<div class="col-md-2"><label class="form-label">Status</label><select class="form-select" name="status"><option>Present</option><option>Late</option><option>Absent</option></select></div>
+<div class="col-md-2"><button class="btn btn-primary w-100">Save record</button></div>
+</form></div>
+<div class="content-card"><form class="d-flex flex-wrap gap-2 align-items-end mb-3"><div><label class="form-label">Filter date</label><input class="form-control" type="date" name="date" value="{{ selected_date }}"></div><button class="btn btn-outline-primary">Apply filter</button><a class="btn btn-light" href="{{ url_for('attendance') }}">Today</a></form>
+<div class="table-responsive"><table class="table"><thead><tr><th>Student</th><th>ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th><th>Action</th></tr></thead><tbody>
+{% for r in records %}<tr><td>{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date or selected_date }}</td><td>{{ r.check_in or '—' }}</td><td>{% if r.status %}<span class="status-pill {{ r.status|lower }}">{{ r.status }}</span>{% else %}<span class="status-pill unrecorded">Not recorded</span>{% endif %}</td><td>{{ r.method or '—' }}</td><td>{% if r.attendance_id %}<form method="post" action="{{ url_for('delete_attendance', record_id=r.attendance_id) }}" onsubmit="return confirm('Remove this attendance record? This action cannot be undone.')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="text-secondary">—</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="7" class="text-center text-secondary py-4">No students registered yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

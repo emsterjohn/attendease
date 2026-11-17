@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign in · AttendEase{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">✓</div>
+    <div class="text-center mb-4">
+      <span class="eyebrow">SMART ATTENDANCE MONITORING</span>
+      <h1 class="h3 fw-bold mt-2 mb-1">Welcome to AttendEase</h1>
+      <p class="text-secondary mb-0">Sign in using your registered ID</p>
+    </div>
+    <form method="post">
+      <label class="form-label" for="student_id">Student ID / Account ID</label>
+      <input id="student_id" class="form-control form-control-lg mb-3" name="student_id"
+             autocomplete="username" placeholder="Enter your ID" required autofocus>
+      <label class="form-label" for="password">Password</label>
+      <input id="password" class="form-control form-control-lg mb-4" type="password"
+             name="password" autocomplete="current-password" placeholder="Enter your password" required>
+      <button class="btn btn-primary btn-lg w-100">Sign in</button>
+    </form>
+    <p class="small text-secondary text-center mt-4 mb-0">Contact your system administrator if you need account assistance.</p>
+  </div>
+</div>
+{% endblock %}

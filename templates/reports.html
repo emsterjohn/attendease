@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Reports · AttendEase{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">ANALYTICS</span><h1>Attendance reports</h1><p>Review attendance within a selected date range.</p></div></div>
+<div class="content-card">
+<form class="row g-3 align-items-end mb-4">
+<div class="col-md-4"><label class="form-label">From</label><input class="form-control" type="date" name="start" value="{{ start }}"></div>
+<div class="col-md-4"><label class="form-label">To</label><input class="form-control" type="date" name="end" value="{{ end }}"></div>
+<div class="col-md-4 d-flex gap-2"><button class="btn btn-primary">Generate</button><a class="btn btn-outline-success" href="{{ url_for('export_report', start=start, end=end) }}">Export CSV</a></div>
+</form>
+<div class="table-responsive"><table class="table"><thead><tr><th>Student ID</th><th>Name</th><th>Date</th><th>Check-in</th><th>Status</th><th>Method</th></tr></thead><tbody>
+{% for r in records %}<tr><td>{{ r.student_id }}</td><td>{{ r.full_name }}</td><td>{{ r.attendance_date or '—' }}</td><td>{{ r.check_in or '—' }}</td><td>{% if r.status %}<span class="status-pill {{ r.status|lower }}">{{ r.status }}</span>{% else %}<span class="status-pill unrecorded">No record</span>{% endif %}</td><td>{{ r.method or '—' }}</td></tr>
+{% else %}<tr><td colspan="6" class="text-center text-secondary py-4">No students registered yet.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}
