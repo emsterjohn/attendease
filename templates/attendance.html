@@ -3,9 +3,16 @@
 {% block scripts %}
 <script>
 document.querySelectorAll('input[name="present_cutoff"],input[name="late_cutoff"],input[name="absent_cutoff"]').forEach(function(field){
- field.value=(field.value||"").replace(":","");
- field.addEventListener("input",function(){field.value=field.value.replace(/[^0-9]/g,"").slice(0,4);field.setCustomValidity("");});
- field.addEventListener("blur",function(){const v=field.value,h=Number(v.slice(0,2)),m=Number(v.slice(2,4));field.setCustomValidity(v.length===4&&h<=23&&m<=59?"":"Enter four digits in 24-hour format, e.g. 0730.");});
+ field.value=(field.value||"").replace(/[^0-9]/g,"").slice(0,4).replace(/^(\\d{2})(\\d)/,"$1:$2");
+ field.addEventListener("input",function(){
+   const digits=field.value.replace(/[^0-9]/g,"").slice(0,4);
+   field.value=digits.length>2?digits.slice(0,2)+":"+digits.slice(2):digits;
+   field.setCustomValidity("");
+ });
+ field.addEventListener("blur",function(){
+   const v=field.value,parts=v.split(":"),h=Number(parts[0]),m=Number(parts[1]);
+   field.setCustomValidity(/^\\d{2}:\\d{2}$/.test(v)&&h<=23&&m<=59?"":"Enter time in HH:MM 24-hour format, e.g. 07:30.");
+ });
 });
 </script>
 {% endblock %}
@@ -32,9 +39,9 @@ document.querySelectorAll('input[name="present_cutoff"],input[name="late_cutoff"
   </form>
   <form method="post" action="{{ url_for('save_attendance_schedule') }}" class="row g-3 align-items-end">
     <input type="hidden" name="attendance_date" value="{{ selected_date }}">
-    <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="0730" autocomplete="off" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">At or before this time: Present.</div></div>
-    <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="0800" autocomplete="off" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">After Present cutoff, through this time: Late.</div></div>
-    <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="0801" autocomplete="off" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">No attendance by this time: Absent.</div></div>
+    <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" placeholder="07:30" autocomplete="off" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">At or before this time: Present.</div></div>
+    <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" placeholder="08:00" autocomplete="off" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">After Present cutoff, through this time: Late.</div></div>
+    <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" placeholder="08:01" autocomplete="off" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">No attendance by this time: Absent.</div></div>
     <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit">Save schedule for this date</button><span class="small text-secondary">Changing this date will not alter schedules or attendance records from other dates.</span></div>
   </form>
 </div>
