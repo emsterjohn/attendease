@@ -28,6 +28,7 @@
     {% if current_user.role in ['admin','teacher'] %}
       <a href="{{ url_for('students') }}" class="side-link">♙ <span>Users</span></a>
       <a href="{{ url_for('attendance') }}" class="side-link">◷ <span>Attendance</span></a>
+      <a href="{{ url_for('attendance_schedule') }}" class="side-link">◴ <span>Daily Schedule</span></a>
       <a href="{{ url_for('scan') }}" class="side-link">▣ <span>QR Scanner</span></a>
       <a href="{{ url_for('reports') }}" class="side-link">▤ <span>Reports</span></a>
     {% else %}

@@ -5,6 +5,10 @@
   const idField = document.getElementById("scanned-id");
   const confirmButton = document.getElementById("confirm-scan");
   const cancelButton = document.getElementById("cancel-scan");
+  const switchCameraButton = document.getElementById("switch-camera");
+  const rotateScreenButton = document.getElementById("rotate-screen");
+  let cameras = [];
+  let activeCameraIndex = 0;
 
   if (!window.Html5Qrcode) {
     resultBox.className = "alert alert-danger mt-3";
@@ -26,13 +30,14 @@
   async function startScanner() {
     if (scannerRunning) return;
     try {
-      const cameras = await Html5Qrcode.getCameras();
+      cameras = await Html5Qrcode.getCameras();
       if (!cameras || cameras.length === 0) {
         showResult("No camera was found on this device.", "danger");
         return;
       }
+      activeCameraIndex = Math.min(activeCameraIndex, cameras.length - 1);
       await scanner.start(
-        cameras[0].id,
+        cameras[activeCameraIndex].id,
         { fps: 10, qrbox: { width: 240, height: 240 } },
         onScanSuccess
       );
@@ -125,6 +130,37 @@
     busy = false;
     showResult("Scan cancelled. You can scan another student.", "secondary");
     await startScanner();
+  });
+
+  switchCameraButton.addEventListener("click", async () => {
+    if (busy) return;
+    try {
+      cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length < 2) {
+        showResult("Only one camera is available on this device.", "warning");
+        return;
+      }
+      await stopScanner();
+      activeCameraIndex = (activeCameraIndex + 1) % cameras.length;
+      await startScanner();
+      showResult("Camera switched successfully.", "success");
+    } catch (error) {
+      showResult("Unable to switch camera. Check camera permissions.", "danger");
+    }
+  });
+
+  rotateScreenButton.addEventListener("click", async () => {
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        const next = screen.orientation.type.startsWith("portrait") ? "landscape" : "portrait";
+        await screen.orientation.lock(next);
+        showResult("Screen orientation changed.", "success");
+      } else {
+        showResult("Screen rotation is controlled by your device. Turn on auto-rotate and rotate your phone.", "info");
+      }
+    } catch (error) {
+      showResult("Your browser does not allow locking screen orientation. Use your phone's auto-rotate setting.", "info");
+    }
   });
 
   startScanner();

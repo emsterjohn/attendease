@@ -13,7 +13,10 @@ AttendEase is a Flask and SQLite attendance monitoring web application with role
 - View-only QR code pages (no QR download button)
 - Camera-based QR attendance scanning for Admin and Teacher
 - Student identity confirmation before attendance is saved
-- Automatic Present / Late classification (8:00 AM cutoff)
+- Editable school-wide Present, Late, and Absent cutoffs (Asia/Manila time)
+- Automatic Present / Late classification and idempotent Absent marking after the absent cutoff
+- Schedule change history showing who changed the cutoffs and when
+- Front/rear camera switching and screen-rotation assistance on supported mobile browsers
 - Duplicate daily QR check-in prevention
 - Manual attendance entry and correction
 - Remove attendance records when an entry was made by mistake
@@ -80,12 +83,13 @@ The login page intentionally does not display demo credentials. Change demo pass
 
 Camera access generally requires HTTPS on a deployed website. Browsers usually allow camera access on `localhost`.
 
-## Attendance status rule
+## School-wide attendance schedule
 
-- Check-in at or before **8:00 AM**: Present
-- Check-in after **8:00 AM**: Late
+Admin and Teacher accounts can open **Daily Schedule** and edit one shared schedule for the whole school. Defaults are Present until **7:30 AM**, Late until **8:00 AM**, and mark remaining students Absent at **8:01 AM**. These are editable defaults, not fixed rules. The system validates that Present < Late < Absent and records who changed the schedule and when. All times use the **Asia/Manila** timezone.
 
-Change `PRESENT_CUTOFF` near the top of `app.py` to match the school's policy. A student with no attendance entry is displayed as **Not recorded**; the system does not automatically mark students Absent because an attendance deadline has not yet been specified.
+A scan at or before the Present cutoff is Present. A scan after Present and at or before Late is Late. After the Late cutoff, QR scans are not automatically accepted as Present or Late; a teacher must use the existing manual attendance workflow. At the Absent cutoff, students without an attendance row are marked Absent. Existing attendance rows are never silently reclassified when the schedule changes.
+
+Absence processing runs idempotently whenever the application receives requests. To ensure marking happens at the exact cutoff even when nobody is using the website, configure an external scheduler to send a POST request every minute to `/tasks/process-absences` with the header `Authorization: Bearer YOUR_ATTENDEASE_CRON_SECRET`. Set the matching `ATTENDEASE_CRON_SECRET` environment variable on the existing Render service first. Do not share this secret. The endpoint returns 503 until the environment variable is configured. Without this scheduler, overdue absences are created on the next website request after the cutoff.
 
 On the Attendance page, Admin and Teacher can remove an incorrect attendance record. The page asks for confirmation before deleting it.
 
