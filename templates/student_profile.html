@@ -4,10 +4,10 @@
 <div class="page-heading"><div><span class="eyebrow">STUDENT RECORD</span><h1>{{ student.full_name }}</h1><p>Student ID: {{ student.student_id }} · Attendance history</p></div><a class="btn btn-outline-secondary" href="{{ url_for('students') }}">Back to users</a></div>
 <div class="content-card">
   <h2 class="section-title mb-3">Attendance history</h2>
-  <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Date</th><th>Check-in</th><th>Status</th><th>Method</th><th>Action</th></tr></thead><tbody>
-  {% for r in records %}<tr><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td><td>{% if r.status == 'Absent' %}<form method="post" action="{{ url_for('remove_student_absence', user_id=student.id, record_id=r.id) }}" onsubmit="return confirm('Remove this Absent record? The student's dashboard and staff totals will update.')"><button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="text-secondary">—</span>{% endif %}</td></tr>
-  {% else %}<tr><td colspan="5" class="empty-state">No attendance history yet.</td></tr>{% endfor %}
+  <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Date</th><th>Check-in</th><th>Status</th><th>Method</th></tr></thead><tbody>
+  {% for r in records %}<tr><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
+  {% else %}<tr><td colspan="4" class="empty-state">No attendance history yet.</td></tr>{% endfor %}
   </tbody></table></div>
-  <p class="small text-secondary mb-0">Only Admins and Teachers can remove Absent records. Present and Late records cannot be removed here.</p>
+  <p class="small text-secondary mb-0">This is the official attendance history. Student-side hiding does not change these records or staff dashboard totals.</p>
 </div>
 {% endblock %}
