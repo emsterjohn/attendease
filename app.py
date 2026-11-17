@@ -35,18 +35,28 @@ def school_now():
     return datetime.now(SCHOOL_TZ)
 
 
-def get_schedule(db=None):
+def get_schedule(db=None, attendance_date=None):
+    """Return the cutoff settings saved for one school date."""
     own_connection = db is None
     connection = db or get_db()
+    target_date = attendance_date or school_now().date().isoformat()
     try:
         row = connection.execute(
+            """SELECT present_cutoff, late_cutoff, absent_cutoff
+               FROM attendance_schedules WHERE attendance_date=?""",
+            (target_date,)
+        ).fetchone()
+        if row:
+            return dict(row)
+        # Keep the old prototype's saved schedule as a migration fallback.
+        legacy = connection.execute(
             "SELECT present_cutoff, late_cutoff, absent_cutoff FROM attendance_schedule WHERE id=1"
         ).fetchone()
-        if row is None:
-            return {"present_cutoff": DEFAULT_PRESENT_CUTOFF,
-                    "late_cutoff": DEFAULT_LATE_CUTOFF,
-                    "absent_cutoff": DEFAULT_ABSENT_CUTOFF}
-        return dict(row)
+        return dict(legacy) if legacy else {
+            "present_cutoff": DEFAULT_PRESENT_CUTOFF,
+            "late_cutoff": DEFAULT_LATE_CUTOFF,
+            "absent_cutoff": DEFAULT_ABSENT_CUTOFF,
+        }
     finally:
         if own_connection:
             connection.close()
@@ -61,7 +71,7 @@ def process_daily_absences():
     now = school_now()
     today = now.date().isoformat()
     with get_db() as db:
-        schedule = get_schedule(db)
+        schedule = get_schedule(db, today)
         cutoff = time.fromisoformat(schedule["absent_cutoff"])
         if now.time().replace(tzinfo=None) < cutoff:
             return 0
@@ -124,6 +134,14 @@ def init_db():
             absent_cutoff TEXT NOT NULL,
             changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
             changed_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS attendance_schedules (
+            attendance_date TEXT PRIMARY KEY,
+            present_cutoff TEXT NOT NULL,
+            late_cutoff TEXT NOT NULL,
+            absent_cutoff TEXT NOT NULL,
+            updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            updated_at TEXT NOT NULL
         );
         """)
         db.execute(
@@ -457,6 +475,10 @@ def delete_user(user_id):
 @roles_required("admin", "teacher")
 def attendance():
     selected_date = request.args.get("date", school_now().date().isoformat())
+    try:
+        date.fromisoformat(selected_date)
+    except ValueError:
+        abort(400)
     with get_db() as db:
         rows = db.execute(
             """SELECT u.id AS user_id, u.full_name, u.student_id,
@@ -471,8 +493,81 @@ def attendance():
         student_rows = db.execute(
             "SELECT id, student_id, full_name FROM users WHERE role='student' ORDER BY full_name"
         ).fetchall()
+        schedule = get_schedule(db, selected_date)
     return render_template("attendance.html", records=rows, students=student_rows,
-                           selected_date=selected_date)
+                           selected_date=selected_date, schedule=schedule)
+
+
+@app.route("/attendance/schedule", methods=["POST"])
+@roles_required("admin", "teacher")
+def save_attendance_schedule():
+    selected_date = request.form.get("attendance_date", "").strip()
+    values = {
+        "present_cutoff": request.form.get("present_cutoff", "").strip(),
+        "late_cutoff": request.form.get("late_cutoff", "").strip(),
+        "absent_cutoff": request.form.get("absent_cutoff", "").strip(),
+    }
+    try:
+        date.fromisoformat(selected_date)
+        present = time.fromisoformat(values["present_cutoff"])
+        late = time.fromisoformat(values["late_cutoff"])
+        absent = time.fromisoformat(values["absent_cutoff"])
+    except ValueError:
+        flash("Choose a valid date and enter all three cutoff times.", "danger")
+        return redirect(url_for("attendance"))
+    if not (present < late < absent):
+        flash("Cutoff times must be ordered: Present, then Late, then Absent.", "danger")
+        return redirect(url_for("attendance", date=selected_date))
+    changed_at = school_now().isoformat(timespec="seconds")
+    with get_db() as db:
+        db.execute(
+            """INSERT INTO attendance_schedules
+               (attendance_date, present_cutoff, late_cutoff, absent_cutoff, updated_by, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(attendance_date) DO UPDATE SET
+                 present_cutoff=excluded.present_cutoff,
+                 late_cutoff=excluded.late_cutoff,
+                 absent_cutoff=excluded.absent_cutoff,
+                 updated_by=excluded.updated_by,
+                 updated_at=excluded.updated_at""",
+            (selected_date, values["present_cutoff"], values["late_cutoff"],
+             values["absent_cutoff"], session.get("user_id"), changed_at)
+        )
+    flash(f"Attendance schedule saved for {selected_date}. Previous dates remain unchanged.", "success")
+    return redirect(url_for("attendance", date=selected_date))
+
+
+@app.route("/users/<int:user_id>/profile")
+@roles_required("admin", "teacher")
+def student_profile(user_id):
+    with get_db() as db:
+        student = db.execute(
+            "SELECT id, student_id, full_name FROM users WHERE id=? AND role='student'",
+            (user_id,)
+        ).fetchone()
+        if not student:
+            abort(404)
+        records = db.execute(
+            "SELECT * FROM attendance WHERE user_id=? ORDER BY attendance_date DESC LIMIT 100",
+            (user_id,)
+        ).fetchall()
+    return render_template("student_profile.html", student=student, records=records)
+
+
+@app.route("/users/<int:user_id>/attendance/<int:record_id>/remove-absence", methods=["POST"])
+@roles_required("admin", "teacher")
+def remove_student_absence(user_id, record_id):
+    with get_db() as db:
+        cursor = db.execute(
+            """DELETE FROM attendance WHERE id=? AND user_id=? AND status='Absent'
+               AND user_id IN (SELECT id FROM users WHERE role='student')""",
+            (record_id, user_id)
+        )
+    if cursor.rowcount:
+        flash("Absent record removed. Student and staff dashboards now reflect the change.", "success")
+    else:
+        flash("Only an existing Absent record can be removed.", "warning")
+    return redirect(url_for("student_profile", user_id=user_id))
 
 
 @app.route("/attendance/<int:record_id>/delete", methods=["POST"])
@@ -524,47 +619,7 @@ def manual_attendance():
 @app.route("/attendance-schedule", methods=["GET", "POST"])
 @roles_required("admin", "teacher")
 def attendance_schedule():
-    if request.method == "POST":
-        values = {
-            "present_cutoff": request.form.get("present_cutoff", "").strip(),
-            "late_cutoff": request.form.get("late_cutoff", "").strip(),
-            "absent_cutoff": request.form.get("absent_cutoff", "").strip(),
-        }
-        try:
-            present = time.fromisoformat(values["present_cutoff"])
-            late = time.fromisoformat(values["late_cutoff"])
-            absent = time.fromisoformat(values["absent_cutoff"])
-        except ValueError:
-            flash("Enter valid cutoff times.", "danger")
-            return redirect(url_for("attendance_schedule"))
-        if not (present < late < absent):
-            flash("Times must be in order: Present cutoff, Late cutoff, then Absent cutoff.", "danger")
-            return redirect(url_for("attendance_schedule"))
-        changed_at = school_now().isoformat(timespec="seconds")
-        user_id = session.get("user_id")
-        with get_db() as db:
-            db.execute(
-                """INSERT INTO attendance_schedule_history
-                   (present_cutoff, late_cutoff, absent_cutoff, changed_by, changed_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (values["present_cutoff"], values["late_cutoff"], values["absent_cutoff"], user_id, changed_at)
-            )
-            db.execute(
-                """UPDATE attendance_schedule
-                   SET present_cutoff=?, late_cutoff=?, absent_cutoff=?, updated_by=?, updated_at=?
-                   WHERE id=1""",
-                (values["present_cutoff"], values["late_cutoff"], values["absent_cutoff"], user_id, changed_at)
-            )
-        flash("School-wide attendance schedule updated. Existing attendance records were not changed.", "success")
-        return redirect(url_for("attendance_schedule"))
-    with get_db() as db:
-        schedule = get_schedule(db)
-        history = db.execute(
-            """SELECT h.*, u.full_name AS changed_by_name
-               FROM attendance_schedule_history h LEFT JOIN users u ON u.id=h.changed_by
-               ORDER BY h.id DESC LIMIT 8"""
-        ).fetchall()
-    return render_template("attendance_schedule.html", schedule=schedule, history=history)
+    return redirect(url_for("attendance"))
 
 
 @app.route("/tasks/process-absences", methods=["POST"])
