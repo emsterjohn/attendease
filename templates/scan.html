@@ -4,10 +4,9 @@
 <div class="page-heading"><div><span class="eyebrow">QUICK CHECK-IN</span><h1>QR attendance scanner</h1><p>Scan a student's QR code. Verify the student's identity before saving attendance.</p></div></div>
 <div class="content-card scanner-card">
   <div class="d-flex flex-wrap gap-2 justify-content-center mb-3">
-    <button type="button" id="switch-camera" class="btn btn-outline-primary">Switch camera</button>
-    <button type="button" id="rotate-screen" class="btn btn-outline-secondary">Rotate screen</button>
+    <button type="button" id="rotate-camera" class="btn btn-outline-primary"><span aria-hidden="true">↻</span> Rotate camera view</button>
   </div>
-  <p class="small text-secondary text-center mb-3">School schedule: Present until {{ schedule.present_cutoff }}, Late until {{ schedule.late_cutoff }}, Absent at {{ schedule.absent_cutoff }} (Philippine time).</p>
+  <p class="small text-secondary text-center mb-3">Today's schedule: Present until {{ schedule.present_cutoff }}, Late until {{ schedule.late_cutoff }}, Absent at {{ schedule.absent_cutoff }} (Philippine time).</p>
   <div id="reader"></div>
   <div class="small text-secondary mt-3">Camera scanning requires HTTPS on deployed websites (localhost is also allowed by most browsers).</div>
   <div id="scan-result" class="alert mt-3 d-none" role="status" aria-live="polite"></div>

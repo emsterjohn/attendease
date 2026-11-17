@@ -1,16 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Attendance · AttendEase{% endblock %}
+{% block title %}Attendance Management · AttendEase{% endblock %}
 {% block content %}
-<div class="page-heading"><div><span class="eyebrow">RECORDS</span><h1>Attendance management</h1><p>Record attendance manually or use the QR scanner.</p></div><a class="btn btn-primary" href="{{ url_for('scan') }}">Scan QR code</a></div>
-<div class="content-card mb-4"><h2 class="section-title mb-3">Manual attendance</h2>
-<form method="post" action="{{ url_for('manual_attendance') }}" class="row g-3 align-items-end">
-<div class="col-md-5"><label class="form-label">Student</label><select class="form-select" name="user_id" required><option value="">Choose student</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_id }} — {{ s.full_name }}</option>{% endfor %}</select></div>
-<div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="attendance_date" value="{{ selected_date }}" required></div>
-<div class="col-md-2"><label class="form-label">Status</label><select class="form-select" name="status"><option>Present</option><option>Late</option><option>Absent</option></select></div>
-<div class="col-md-2"><button class="btn btn-primary w-100">Save record</button></div>
-</form></div>
-<div class="content-card"><form class="d-flex flex-wrap gap-2 align-items-end mb-3"><div><label class="form-label">Filter date</label><input class="form-control" type="date" name="date" value="{{ selected_date }}"></div><button class="btn btn-outline-primary">Apply filter</button><a class="btn btn-light" href="{{ url_for('attendance') }}">Today</a></form>
-<div class="table-responsive"><table class="table"><thead><tr><th>Student</th><th>ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th><th>Action</th></tr></thead><tbody>
-{% for r in records %}<tr><td>{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date or selected_date }}</td><td>{{ r.check_in or '—' }}</td><td>{% if r.status %}<span class="status-pill {{ r.status|lower }}">{{ r.status }}</span>{% else %}<span class="status-pill unrecorded">Not recorded</span>{% endif %}</td><td>{{ r.method or '—' }}</td><td>{% if r.attendance_id %}<form method="post" action="{{ url_for('delete_attendance', record_id=r.attendance_id) }}" onsubmit="return confirm('Remove this attendance record? This action cannot be undone.')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="text-secondary">—</span>{% endif %}</td></tr>
-{% else %}<tr><td colspan="7" class="text-center text-secondary py-4">No students registered yet.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="page-heading">
+  <div><span class="eyebrow">ATTENDANCE WORKSPACE</span><h1>Attendance management</h1><p>Choose a school date, configure its attendance cutoffs, and manage student records.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('scan') }}">Open QR scanner</a>
+</div>
+<div class="content-card mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><h2 class="section-title mb-1">Daily attendance settings</h2><p class="small text-secondary mb-0">Settings are saved separately for each date using Philippine time.</p></div>
+    <span class="badge text-bg-light">Selected date: {{ selected_date }}</span>
+  </div>
+  <form method="get" action="{{ url_for('attendance') }}" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-5 col-md-4"><label class="form-label" for="schedule-date">Attendance date</label><input id="schedule-date" class="form-control" type="date" name="date" value="{{ selected_date }}" required></div>
+    <div class="col-auto"><button class="btn btn-outline-primary">Load date</button></div>
+  </form>
+  <form method="post" action="{{ url_for('save_attendance_schedule') }}" class="row g-3 align-items-end">
+    <input type="hidden" name="attendance_date" value="{{ selected_date }}">
+    <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control" type="time" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">At or before this time: Present.</div></div>
+    <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control" type="time" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">After Present cutoff, through this time: Late.</div></div>
+    <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="time" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">No attendance by this time: Absent.</div></div>
+    <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit">Save schedule for this date</button><span class="small text-secondary">Changing this date will not alter schedules or attendance records from other dates.</span></div>
+  </form>
+</div>
+<div class="content-card mb-4">
+  <h2 class="section-title mb-3">Manual attendance entry</h2>
+  <form method="post" action="{{ url_for('manual_attendance') }}" class="row g-3 align-items-end">
+    <div class="col-md-5"><label class="form-label">Student</label><select class="form-select" name="user_id" required><option value="">Choose student</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_id }} — {{ s.full_name }}</option>{% endfor %}</select></div>
+    <div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="attendance_date" value="{{ selected_date }}" required></div>
+    <div class="col-md-2"><label class="form-label">Status</label><select class="form-select" name="status"><option>Present</option><option>Late</option><option>Absent</option></select></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Save record</button></div>
+  </form>
+</div>
+<div class="content-card">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2"><div><h2 class="section-title mb-1">Student attendance records</h2><p class="small text-secondary mb-0">Records for {{ selected_date }}</p></div></div>
+  <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Student</th><th>Student ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th><th>Action</th></tr></thead><tbody>
+  {% for r in records %}<tr><td class="fw-semibold">{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date or selected_date }}</td><td>{{ r.check_in or '—' }}</td><td>{% if r.status %}<span class="status-pill {{ r.status|lower }}">{{ r.status }}</span>{% else %}<span class="status-pill unrecorded">Not recorded</span>{% endif %}</td><td>{{ r.method or '—' }}</td><td>{% if r.attendance_id %}<form method="post" action="{{ url_for('delete_attendance', record_id=r.attendance_id) }}" onsubmit="return confirm('Remove this attendance record?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="text-secondary">—</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="empty-state">No student accounts found.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
 {% endblock %}
