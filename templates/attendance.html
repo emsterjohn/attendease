@@ -7,10 +7,10 @@
 </div>
 <div class="content-card mb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div><div class="small text-secondary fw-semibold">SESSION STATUS</div><div class="h3 mb-1">{% if session_status == 'Open' %}<span class="text-success">Attendance Open</span>{% else %}<span class="text-secondary">Attendance Closed</span>{% endif %}</div><p class="small text-secondary mb-0">{% if session_status == 'Open' %}Students can be marked for this date.{% else %}QR and manual attendance marking are disabled until the teacher opens this session.{% endif %}</p></div>
+    <div><div class="small text-secondary fw-semibold">SESSION STATUS</div><div class="h3 mb-1">{% if session_status == 'Open' %}<span class="text-success">Attendance Open</span>{% else %}<span class="text-secondary">Attendance Closed</span>{% endif %}</div><p class="small text-secondary mb-0">{% if session_status == 'Open' and schedule_saved %}Session is open. Attendance can now be tracked for this date.{% elif session_status == 'Open' %}Session setup is open. Save the date and cutoff times below to enable attendance marking.{% else %}Attendance marking is disabled until the teacher opens this session.{% endif %}</p></div>
     <div>{% if session_status == 'Open' %}<form method="post" action="{{ url_for('close_attendance_session') }}" onsubmit="return confirm('Close attendance for this date?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-outline-danger">Close attendance</button></form>{% else %}<form method="post" action="{{ url_for('open_attendance_session') }}" onsubmit="return confirm('Open attendance for this date?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-success" {% if not schedule_saved or not is_today %}disabled{% endif %}>Open attendance</button></form>{% endif %}</div>
   </div>
-  {% if not schedule_saved %}<div class="alert alert-warning mt-3 mb-0">Save the attendance date and all cutoff times below before opening this session.</div>{% elif not is_today and session_status != 'Open' %}<div class="small text-secondary mt-2">You can prepare this schedule in advance. The session can be opened on its scheduled date.</div>{% endif %}
+  {% if not schedule_saved %}<div class="alert alert-warning mt-3 mb-0">{% if session_status == 'Open' %}Attendance is open for setup, but marking remains blocked until all cutoff times are saved.{% else %}Open attendance first, then save the date and all cutoff times below.{% endif %}</div>{% elif not is_today and session_status != 'Open' %}<div class="small text-secondary mt-2">You can prepare this schedule in advance. The session can be opened on its scheduled date.</div>{% endif %}
 </div>
 <div class="content-card mb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -26,7 +26,7 @@
     <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control" type="time" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">At or before this time: Present.</div></div>
     <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control" type="time" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">After Present cutoff, through this time: Late.</div></div>
     <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="time" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">No attendance by this time: Absent.</div></div>
-    <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit" {% if session_status == 'Open' %}disabled{% endif %}>Save schedule for this date</button><span class="small text-secondary">Changing this date will not alter schedules or attendance records from other dates.</span></div>
+    <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit">Save schedule for this date</button><span class="small text-secondary">Changing this date will not alter schedules or attendance records from other dates.</span></div>
   </form>
 </div>
 <div class="content-card mb-4">
@@ -36,7 +36,7 @@
     <div class="col-md-5"><label class="form-label">Student</label><select class="form-select" name="user_id" required><option value="">Choose student</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_id }} — {{ s.full_name }}</option>{% endfor %}</select></div>
     <div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="attendance_date" value="{{ selected_date }}" required></div>
     <div class="col-md-2"><label class="form-label">Status</label><select class="form-select" name="status"><option>Present</option><option>Late</option><option>Absent</option></select></div>
-    <div class="col-md-2"><button class="btn btn-primary w-100" {% if session_status != 'Open' %}disabled{% endif %}>Save record</button></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100" {% if session_status != 'Open' or not schedule_saved %}disabled{% endif %}>Save record</button></div>
   </form>
 </div>
 <div class="content-card">
