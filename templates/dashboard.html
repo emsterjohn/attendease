@@ -1,37 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Dashboard · AttendEase{% if current_user.role == "admin" %}
-<div class="modal fade" id="resetDataModal" tabindex="-1" aria-labelledby="resetDataTitle" aria-hidden="true">
- <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form method="post" action="{{ url_for('reset_all_data') }}">
-  <div class="modal-header"><h2 class="modal-title fs-5 text-danger" id="resetDataTitle">Reset all system data?</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-  <div class="modal-body"><p><strong>This cannot be undone.</strong> All attendance records and history, schedules, sessions, and student history visibility settings will be cleared. Accounts created after setup will also be deleted.</p>
-  <p>The four built-in accounts (Admin, Teacher, Juan, and Maria) and their login credentials will remain. Their attendance history will be erased.</p>
-  <label class="form-label" for="resetConfirmation">Type <strong>RESET</strong> to confirm.</label><input class="form-control" id="resetConfirmation" name="confirm_reset" required pattern="RESET" autocomplete="off" placeholder="RESET"></div>
-  <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-danger">Permanently reset data</button></div>
- </form></div></div>
-</div>
-{% endif %}
-{% endblock %}
+{% block title %}Dashboard · AttendEase{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><span class="eyebrow">OVERVIEW</span><h1>Attendance dashboard</h1><p>Monitor student attendance for today.</p></div>
-  <div class="d-flex flex-wrap align-items-center gap-2"><div class="date-chip">Today · {{ today }}</div>{% if current_user.role == "admin" %}<button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#resetDataModal">Reset all data</button>{% endif %}</div>
+  <div>
+    <span class="eyebrow">OVERVIEW</span>
+    <h1>Attendance dashboard</h1>
+    <p>Monitor student attendance for today.</p>
+  </div>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="date-chip">Today · {{ today }}</div>
+    {% if current_user.role == "admin" %}
+      <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#resetDataModal">
+        Reset all data
+      </button>
+    {% endif %}
+  </div>
 </div>
+
 <div class="row g-3 mb-4">
-  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Registered students</div><div class="stat-value">{{ total }}</div><div class="stat-foot">Active student accounts</div></div></div>
-  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Present</div><div class="stat-value text-success">{{ present }}</div><div class="stat-foot">Checked in by Present cutoff</div></div></div>
-  <div class="col-6 col-xl-3"><div class="stat-card"><div class="stat-label">Late</div><div class="stat-value text-warning">{{ late }}</div><div class="stat-foot">After Present cutoff, within Late cutoff</div></div></div>
-  <div class="col-6 col-xl"><div class="stat-card"><div class="stat-label">Absent</div><div class="stat-value text-danger">{{ absent }}</div><div class="stat-foot">Past absent cutoff</div></div></div>
-  <div class="col-6 col-xl"><div class="stat-card"><div class="stat-label">Not recorded</div><div class="stat-value text-secondary">{{ not_recorded }}</div><div class="stat-foot">Before absent cutoff</div></div></div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-label">Registered students</div>
+      <div class="stat-value">{{ total }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-label">Present</div>
+      <div class="stat-value text-success">{{ present }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-label">Late</div>
+      <div class="stat-value text-warning">{{ late }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-label">Absent</div>
+      <div class="stat-value text-danger">{{ absent }}</div>
+    </div>
+  </div>
 </div>
+
 <div class="content-card">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h2 class="section-title">Recent attendance</h2><p class="text-secondary small mb-0">Latest student check-ins</p></div>
+    <div>
+      <h2 class="section-title">Recent attendance</h2>
+      <p class="text-secondary small mb-0">Latest student check-ins</p>
+    </div>
     <a class="btn btn-primary" href="{{ url_for('scan') }}">Open QR scanner</a>
   </div>
-  <div class="table-responsive"><table class="table align-middle">
-    <thead><tr><th>Student</th><th>Student ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th></tr></thead>
-    <tbody>{% for r in recent %}<tr><td class="fw-semibold">{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
-    {% else %}<tr><td colspan="6" class="empty-state">No attendance records yet.</td></tr>{% endfor %}</tbody>
-  </table></div>
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr><th>Student</th><th>Student ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th></tr>
+      </thead>
+      <tbody>
+        {% for r in recent %}
+          <tr>
+            <td class="fw-semibold">{{ r.full_name }}</td>
+            <td>{{ r.student_id }}</td>
+            <td>{{ r.attendance_date }}</td>
+            <td>{{ r.check_in }}</td>
+            <td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td>
+            <td>{{ r.method }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty-state">No attendance records yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
+
+{% if current_user.role == "admin" %}
+<div class="modal fade" id="resetDataModal" tabindex="-1" aria-labelledby="resetDataTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('reset_all_data') }}">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5 text-danger" id="resetDataTitle">Reset all system data?</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p><strong>Warning: This action cannot be undone.</strong></p>
+          <p>This will permanently delete all attendance records and histories, daily schedules, attendance sessions, and other saved attendance data. It will also delete accounts created after the system's initial setup.</p>
+          <p><strong>These four built-in accounts and their passwords will be kept:</strong> Admin, Teacher, Juan, and Maria. Their attendance histories will also be erased.</p>
+          <div class="alert alert-warning mb-3">After the reset, the system will have only the four built-in accounts and a fresh attendance setup.</div>
+          <label class="form-label" for="resetConfirmation">Type <strong>RESET</strong> below to confirm.</label>
+          <input class="form-control" id="resetConfirmation" name="confirm_reset" type="text" required pattern="RESET" autocomplete="off" placeholder="Type RESET">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Yes, reset all data</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
