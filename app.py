@@ -437,26 +437,25 @@ def profile():
     return render_template("profile.html", user=user, records=records)
 
 
-@app.route("/profile/attendance/<int:record_id>/hide", methods=["POST"])
-@roles_required("student")
-def hide_own_absence(record_id):
-    user = get_current_user()
+@app.route("/admin/reset-all-data", methods=["POST"])
+@roles_required("admin")
+def reset_all_data():
+    if request.form.get("confirm_reset") != "RESET":
+        flash("Reset cancelled. Type RESET exactly to confirm.", "warning")
+        return redirect(url_for("dashboard"))
     with get_db() as db:
-        record = db.execute(
-            "SELECT id FROM attendance WHERE id=? AND user_id=? AND status='Absent'",
-            (record_id, user["id"])
-        ).fetchone()
-        if not record:
-            flash("Only your own Absent records can be hidden.", "warning")
-            return redirect(url_for("profile"))
-        db.execute(
-            """INSERT OR IGNORE INTO student_hidden_absences
-               (student_id, attendance_id, hidden_at) VALUES (?, ?, ?)""",
-            (user["id"], record_id, school_now().isoformat(timespec="seconds"))
-        )
-    flash("Absent record hidden from your personal dashboard only.", "success")
-    return redirect(url_for("profile"))
-
+        # Clear all operational records while preserving the four seeded accounts.
+        for table in ("student_hidden_absences", "attendance", "attendance_schedule_history", "attendance_schedules", "attendance_sessions"):
+            db.execute("DELETE FROM " + table)
+        db.execute("DELETE FROM attendance_schedule")
+        db.execute("DELETE FROM users WHERE username NOT IN (?, ?, ?, ?)", ("admin", "teacher", "juan", "maria"))
+        db.execute("""INSERT OR REPLACE INTO attendance_schedule
+            (id, present_cutoff, late_cutoff, absent_cutoff, updated_by, updated_at)
+            VALUES (1, ?, ?, ?, NULL, ?)""",
+            (DEFAULT_PRESENT_CUTOFF, DEFAULT_LATE_CUTOFF, DEFAULT_ABSENT_CUTOFF, school_now().isoformat(timespec="seconds")))
+    session.clear()
+    flash("System reset complete. The four built-in accounts remain; all histories and additional accounts were cleared.", "success")
+    return redirect(url_for("login"))
 
 @app.route("/users")
 @roles_required("admin", "teacher")
@@ -568,6 +567,11 @@ def save_attendance_schedule():
     }
     try:
         date.fromisoformat(selected_date)
+        for key, raw in values.items():
+            digits = raw.replace(":", "")
+            if len(digits) != 4 or not digits.isdigit():
+                raise ValueError("Enter four digits, for example 0730.")
+            values[key] = f"{digits[:2]}:{digits[2:]}"
         present = time.fromisoformat(values["present_cutoff"])
         late = time.fromisoformat(values["late_cutoff"])
         absent = time.fromisoformat(values["absent_cutoff"])
