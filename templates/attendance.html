@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Attendance Management · AttendEase{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll(".attendance-time-input").forEach((field) => {
+  field.addEventListener("input", () => {
+    const digits = field.value.replace(/\D/g, "").slice(0, 4);
+    field.value = digits.length > 2 ? digits.slice(0, 2) + ":" + digits.slice(2) : digits;
+  });
+});
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-heading">
   <div><span class="eyebrow">ATTENDANCE WORKSPACE</span><h1>Attendance management</h1><p>Configure a school date, then open or close its attendance session.</p></div>
@@ -14,7 +24,7 @@
 </div>
 <div class="content-card mb-4">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h2 class="section-title mb-1">Daily attendance settings</h2><p class="small text-secondary mb-0">Save the date and cutoffs before opening attendance. Times use Philippine time.</p></div>
+    <div><h2 class="section-title mb-1">Daily attendance settings</h2><p class="small text-secondary mb-0">Save the date and cutoffs before opening attendance. Enter numbers in 24-hour format (HH:MM), for example 07:30. Mobile devices will show a numeric keypad.</p></div>
     <span class="badge text-bg-light">Selected date: {{ selected_date }}</span>
   </div>
   <form method="get" action="{{ url_for('attendance') }}" class="row g-2 align-items-end mb-3">
@@ -23,9 +33,9 @@
   </form>
   <form method="post" action="{{ url_for('save_attendance_schedule') }}" class="row g-3 align-items-end">
     <input type="hidden" name="attendance_date" value="{{ selected_date }}">
-    <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control" type="time" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">At or before this time: Present.</div></div>
-    <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control" type="time" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">After Present cutoff, through this time: Late.</div></div>
-    <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="time" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">No attendance by this time: Absent.</div></div>
+    <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control attendance-time-input" type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required><div class="form-text">At or before this time: Present.</div></div>
+    <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control attendance-time-input" type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required><div class="form-text">After Present cutoff, through this time: Late.</div></div>
+    <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control attendance-time-input" type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required><div class="form-text">No attendance by this time: Absent.</div></div>
     <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit">Save schedule for this date</button><span class="small text-secondary">Changing this date will not alter schedules or attendance records from other dates.</span></div>
   </form>
 </div>
