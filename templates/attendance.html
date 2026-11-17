@@ -3,7 +3,7 @@
 {% block scripts %}
 <script>
 document.querySelectorAll('input[name="present_cutoff"],input[name="late_cutoff"],input[name="absent_cutoff"]').forEach(function(field){
- field.value=(field.value||"").replace(/[^0-9]/g,"").slice(0,4).replace(/^(\\d{2})(\\d)/,"$1:$2");
+ field.value=(field.value||"").replace(/[^0-9]/g,"").slice(0,4).replace(/^(\d{2})(\d)/,"$1:$2");
  field.addEventListener("input",function(){
    const digits=field.value.replace(/[^0-9]/g,"").slice(0,4);
    field.value=digits.length>2?digits.slice(0,2)+":"+digits.slice(2):digits;
@@ -11,7 +11,7 @@ document.querySelectorAll('input[name="present_cutoff"],input[name="late_cutoff"
  });
  field.addEventListener("blur",function(){
    const v=field.value,parts=v.split(":"),h=Number(parts[0]),m=Number(parts[1]);
-   field.setCustomValidity(/^\\d{2}:\\d{2}$/.test(v)&&h<=23&&m<=59?"":"Enter time in HH:MM 24-hour format, e.g. 07:30.");
+   field.setCustomValidity(/^\d{2}:\d{2}$/.test(v)&&h<=23&&m<=59?"":"Enter time in HH:MM 24-hour format, e.g. 07:30.");
  });
 });
 </script>
