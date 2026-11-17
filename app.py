@@ -403,10 +403,9 @@ def dashboard():
                 JOIN users u ON u.id=a.user_id
                 ORDER BY a.attendance_date DESC, a.check_in DESC LIMIT 8"""
             ).fetchall()
-            not_recorded = max(0, total - present - late - absent)
             return render_template(
                 "dashboard.html", total=total, present=present, late=late,
-                absent=absent, not_recorded=not_recorded, recent=recent
+                absent=absent, recent=recent
             )
         mine = db.execute(
             """SELECT a.* FROM attendance a
