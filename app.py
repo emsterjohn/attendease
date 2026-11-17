@@ -346,7 +346,7 @@ def logout():
 @login_required
 def dashboard():
     user = get_current_user()
-    today = date.today().isoformat()
+    today = school_now().date().isoformat()
     with get_db() as db:
         if user["role"] in ("admin", "teacher"):
             total = db.execute(
@@ -359,15 +359,16 @@ def dashboard():
             ).fetchall()
             present = sum(r["status"] == "Present" for r in rows)
             late = sum(r["status"] == "Late" for r in rows)
+            absent = sum(r["status"] == "Absent" for r in rows)
             recent = db.execute(
                 """SELECT a.*, u.full_name, u.student_id FROM attendance a
                 JOIN users u ON u.id=a.user_id
                 ORDER BY a.attendance_date DESC, a.check_in DESC LIMIT 8"""
             ).fetchall()
-            not_recorded = max(0, total - present - late)
+            not_recorded = max(0, total - present - late - absent)
             return render_template(
                 "dashboard.html", total=total, present=present, late=late,
-                not_recorded=not_recorded, recent=recent
+                absent=absent, not_recorded=not_recorded, recent=recent
             )
         mine = db.execute(
             """SELECT * FROM attendance WHERE user_id=?
@@ -393,7 +394,7 @@ def profile():
 @app.route("/users")
 @roles_required("admin", "teacher")
 def students():
-    selected_date = date.today().isoformat()
+    selected_date = school_now().date().isoformat()
     with get_db() as db:
         role_filter = "('student','teacher')" if get_current_user()["role"] == "admin" else "('student')"
         rows = db.execute(
@@ -455,7 +456,7 @@ def delete_user(user_id):
 @app.route("/attendance")
 @roles_required("admin", "teacher")
 def attendance():
-    selected_date = request.args.get("date", date.today().isoformat())
+    selected_date = request.args.get("date", school_now().date().isoformat())
     with get_db() as db:
         rows = db.execute(
             """SELECT u.id AS user_id, u.full_name, u.student_id,
@@ -477,7 +478,7 @@ def attendance():
 @app.route("/attendance/<int:record_id>/delete", methods=["POST"])
 @roles_required("admin", "teacher")
 def delete_attendance(record_id):
-    selected_date = request.form.get("attendance_date", date.today().isoformat())
+    selected_date = request.form.get("attendance_date", school_now().date().isoformat())
     with get_db() as db:
         cursor = db.execute("DELETE FROM attendance WHERE id=?", (record_id,))
     if cursor.rowcount:
@@ -491,7 +492,7 @@ def delete_attendance(record_id):
 @roles_required("admin", "teacher")
 def manual_attendance():
     user_id = request.form.get("user_id", type=int)
-    selected_date = request.form.get("attendance_date", date.today().isoformat())
+    selected_date = request.form.get("attendance_date", school_now().date().isoformat())
     status = request.form.get("status", "Present")
     if status not in ("Present", "Late", "Absent"):
         abort(400)
@@ -507,7 +508,7 @@ def manual_attendance():
                 """INSERT INTO attendance
                 (user_id, attendance_date, check_in, status, method)
                 VALUES (?, ?, ?, ?, 'Manual')""",
-                (user_id, selected_date, datetime.now().strftime("%H:%M:%S"), status)
+                (user_id, selected_date, school_now().strftime("%H:%M:%S"), status)
             )
             flash("Attendance saved.", "success")
         except sqlite3.IntegrityError:
@@ -566,6 +567,20 @@ def attendance_schedule():
     return render_template("attendance_schedule.html", schedule=schedule, history=history)
 
 
+@app.route("/tasks/process-absences", methods=["POST"])
+def scheduled_absence_task():
+    configured_secret = os.environ.get("ATTENDEASE_CRON_SECRET", "")
+    supplied = request.headers.get("Authorization", "")
+    expected = f"Bearer {configured_secret}"
+    if not configured_secret:
+        return {"ok": False, "message": "Scheduled task is not configured."}, 503
+    if not secrets.compare_digest(supplied, expected):
+        abort(403)
+    inserted = process_daily_absences()
+    return {"ok": True, "absences_created": inserted,
+            "school_date": school_now().date().isoformat()}
+
+
 @app.route("/scan")
 @roles_required("admin", "teacher")
 def scan():
@@ -589,7 +604,7 @@ def api_scan_preview():
             return {"ok": False, "message": "QR code is not recognized as a registered student."}, 404
         existing = db.execute(
             "SELECT status, check_in FROM attendance WHERE user_id=? AND attendance_date=?",
-            (student["id"], date.today().isoformat())
+            (student["id"], school_now().date().isoformat())
         ).fetchone()
     process_daily_absences()
     return {
@@ -618,7 +633,7 @@ def api_scan():
     with get_db() as db:
         record = db.execute(
             "SELECT attendance_date, check_in, status FROM attendance WHERE user_id=? AND attendance_date=?",
-            (student["id"], date.today().isoformat())
+            (student["id"], school_now().date().isoformat())
         ).fetchone()
     return {
         "ok": ok, "message": message,
@@ -687,8 +702,8 @@ def my_qr():
 @app.route("/reports")
 @roles_required("admin", "teacher")
 def reports():
-    start = request.args.get("start", date.today().replace(day=1).isoformat())
-    end = request.args.get("end", date.today().isoformat())
+    start = request.args.get("start", school_now().date().replace(day=1).isoformat())
+    end = request.args.get("end", school_now().date().isoformat())
     with get_db() as db:
         rows = db.execute(
             """SELECT u.id AS user_id, u.full_name, u.student_id,
@@ -707,8 +722,8 @@ def reports():
 @app.route("/reports/export")
 @roles_required("admin", "teacher")
 def export_report():
-    start = request.args.get("start", date.today().replace(day=1).isoformat())
-    end = request.args.get("end", date.today().isoformat())
+    start = request.args.get("start", school_now().date().replace(day=1).isoformat())
+    end = request.args.get("end", school_now().date().isoformat())
     with get_db() as db:
         rows = db.execute(
             """SELECT u.student_id, u.full_name, a.attendance_date,
