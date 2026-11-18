@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}QR Scanner · AttendEase{% endblock %}
 {% block content %}
-<div class="page-heading"><div><span class="eyebrow">QUICK CHECK-IN</span><h1>QR attendance scanner</h1><a class="btn btn-outline-secondary" href="{{ url_for('attendance', view='records') }}">Attendance records</a>{% if session_open %}<form method="post" action="{{ url_for('close_attendance_session') }}" onsubmit="return confirm('Close attendance? Students will no longer be able to scan.');"><input type="hidden" name="attendance_date" value="{{ today }}"><button class="btn btn-outline-danger" type="submit">Close Attendance</button></form>{% endif %}<p>Scan a student's QR code. Verify the student's identity before saving attendance.</p></div></div>
+<div class="page-heading"><div><span class="eyebrow">QUICK CHECK-IN</span><h1>QR attendance scanner</h1><a class="btn btn-outline-secondary" href="{{ url_for('attendance', view='records') }}">Attendance records</a>{% if session_open %}<form method="post" action="{{ url_for('close_attendance_session') }}" onsubmit="return confirm('Close attendance? Students will no longer be able to scan.');"><input type="hidden" name="attendance_date" value="{{ today }}"><button class="btn btn-outline-danger" type="submit">Close Attendance</button></form>{% endif %}</div></div>
 <div class="content-card scanner-card">
   {% if not session_open %}
   <div class="alert alert-warning mb-0"><h2 class="h5">Attendance is closed</h2><p class="mb-0">The teacher must save today's date and cutoff times, then open the attendance session before QR scanning can begin.</p></div>
@@ -9,13 +9,13 @@
   <div class="d-flex flex-wrap gap-2 justify-content-center mb-3">
     <button type="button" id="flip-camera" class="btn btn-outline-primary"><span aria-hidden="true">⇄</span> Flip Camera</button>
   </div>
-  <p class="small text-secondary text-center mb-3">Today's schedule: Present until {{ schedule.present_cutoff }}, Late until {{ schedule.late_cutoff }}, Absent at {{ schedule.absent_cutoff }} (Philippine time).</p>
+  
   <div id="reader"></div>
-  <div class="small text-secondary mt-3">Camera scanning requires HTTPS on deployed websites (localhost is also allowed by most browsers).</div>
+  
   <div id="scan-result" class="alert mt-3 d-none" role="status" aria-live="polite"></div>
   <section id="scan-confirmation" class="scan-confirmation mt-3 d-none" aria-live="polite">
     <h2 class="section-title">Confirm student identity</h2>
-    <p class="text-secondary mb-3">Check that this is the correct student before recording attendance.</p>
+    
     <div class="student-scan-details">
       <div><span>Student name</span><strong id="scanned-name">—</strong></div>
       <div><span>Student ID</span><strong id="scanned-id">—</strong></div>
@@ -29,7 +29,7 @@
   {% if session_open %}
   <div class="content-card mt-4" id="live-attendance-list">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <div><h2 class="section-title">Registered students</h2><p class="small text-secondary mb-0">Live attendance status · Alphabetical order</p></div>
+      <div><h2 class="section-title">Registered students</h2></div>
       <div class="d-flex flex-wrap gap-2"><span class="status-pill present" id="scan-present-count">Present 0</span><span class="status-pill late" id="scan-late-count">Late 0</span><span class="status-pill absent" id="scan-absent-count">Absent 0</span><span class="status-pill unrecorded" id="scan-pending-count">Not scanned 0</span></div>
     </div>
     <input type="search" class="form-control mb-3" id="scan-student-search" placeholder="Search by student name or ID" aria-label="Search students">
