@@ -83,15 +83,32 @@ The login page intentionally does not display demo credentials. Change demo pass
 
 Camera access generally requires HTTPS on a deployed website. Browsers usually allow camera access on `localhost`.
 
-## School-wide attendance schedule
+## Attendance setup and QR scanning
 
-Admin and Teacher accounts can open **Daily Schedule** and edit one shared schedule for the whole school. Defaults are Present until **7:30 AM**, Late until **8:00 AM**, and mark remaining students Absent at **8:01 AM**. These are editable defaults, not fixed rules. The system validates that Present < Late < Absent and records who changed the schedule and when. All times use the **Asia/Manila** timezone.
+1. Admin or Teacher opens **Attendance**.
+2. Select **Open Attendance** and set today's attendance date and times.
+3. Save the schedule to open the session and launch the QR scanner.
+4. Scan a student's QR code, verify the displayed name and Student ID, then confirm.
+5. The scanner's student list updates automatically and is sorted A–Z. Search by student name or ID.
+6. Select **Close Attendance** when scanning is finished.
 
-A scan at or before the Present cutoff is Present. A scan after Present and at or before Late is Late. After the Late cutoff, QR scans are not automatically accepted as Present or Late; a teacher must use the existing manual attendance workflow. At the Absent cutoff, students without an attendance row are marked Absent. Existing attendance rows are never silently reclassified when the schedule changes.
+The default schedule is **08:00 Present start**, **08:15 Late start**, and **08:45 Absent cutoff** (Philippine time). Before 08:00, scans are rejected. From 08:00 until before 08:15, students are Present. From 08:15 until before 08:45, students are Late. At 08:45, unscanned students are marked Absent and further QR scans are rejected. Existing records are not overwritten by duplicate scans.
 
-Absence processing runs idempotently whenever the application receives requests. To ensure marking happens at the exact cutoff even when nobody is using the website, configure an external scheduler to send a POST request every minute to `/tasks/process-absences` with the header `Authorization: Bearer YOUR_ATTENDEASE_CRON_SECRET`. Set the matching `ATTENDEASE_CRON_SECRET` environment variable on the existing Render service first. Do not share this secret. The endpoint returns 503 until the environment variable is configured. Without this scheduler, overdue absences are created on the next website request after the cutoff.
+Admin, Teacher, and Student dashboards refresh automatically while open. Student dashboards show the current attendance result and scan time, with a notification when a new result is recorded. The QR scanner can switch between available front and rear cameras on supported devices. Mobile navigation uses a side drawer.
 
-On the Attendance page, Admin and Teacher can remove an incorrect attendance record. The page asks for confirmation before deleting it.
+## Automatic absence processing on Render
+
+The scanner page checks for the attendance cutoff while a teacher is using it. A GitHub Actions workflow is also included to call the protected maintenance endpoint every five minutes, including when nobody has the scanner page open.
+
+Configure these values before relying on automatic absence processing:
+
+1. In the Render service environment, add `ATTENDEASE_CRON_SECRET` with a long random secret value, then redeploy.
+2. In GitHub, open **Settings → Secrets and variables → Actions → New repository secret**.
+3. Add `ATTENDEASE_BASE_URL` with your Render service URL (for example, `https://your-service.onrender.com`, without a trailing slash).
+4. Add `ATTENDEASE_CRON_SECRET` with the exact same secret value used in Render.
+5. In GitHub **Actions**, confirm that **Attendance absence processor** is enabled. You can also run it manually with **Run workflow**.
+
+Keep the secret private. If these secrets are not configured, the workflow skips the request. Without the workflow, overdue absences are created the next time the application receives a request after the cutoff.
 
 ## Database and existing records
 
