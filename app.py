@@ -595,7 +595,7 @@ def save_attendance_schedule():
             raise ValueError("Attendance can only be opened for today.")
         for key, raw in values.items():
             digits = raw.replace(":", "")
-            if len(digits) != 4 || !digits.isdigit():
+            if len(digits) != 4 or not digits.isdigit():
                 raise ValueError("Enter a valid time in HH:MM format.")
             values[key] = f"{digits[:2]}:{digits[2:]}"
         start_time = time.fromisoformat(values["present_cutoff"])
