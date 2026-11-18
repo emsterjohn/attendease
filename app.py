@@ -655,8 +655,16 @@ def open_attendance_session():
         abort(400)
     if selected_date != school_now().date().isoformat():
         flash("A session can only be opened on its scheduled school date. You may configure future dates in advance.", "warning")
-        return redirect(url_for("attendance", date=selected_date))
+        return redirect(url_for("attendance", view="records", date=selected_date))
     with get_db() as db:
+        if not get_schedule(db, selected_date):
+            flash("Save the attendance times before opening the session.", "warning")
+            return redirect(url_for("attendance", view="setup"))
+        if db.execute(
+            "SELECT 1 FROM attendance WHERE attendance_date=? LIMIT 1", (selected_date,)
+        ).fetchone():
+            flash("This attendance session already has records and cannot be reopened.", "warning")
+            return redirect(url_for("attendance", view="records", date=selected_date))
         db.execute(
             """INSERT INTO attendance_sessions
                (attendance_date, status, opened_by, opened_at, closed_by, closed_at)
@@ -667,7 +675,7 @@ def open_attendance_session():
             (selected_date, session.get("user_id"), school_now().isoformat(timespec="seconds"))
         )
     flash("Attendance is now OPEN. QR scanning and attendance marking are enabled.", "success")
-    return redirect(url_for("attendance", date=selected_date))
+    return redirect(url_for("scan"))
 
 
 @app.route("/attendance/session/close", methods=["POST"])
