@@ -10,7 +10,7 @@
     if (current) {
       title.textContent = current.status === "Present" ? "You are Present!" :
         current.status === "Late" ? "You are Late." : "You are Absent.";
-      time.textContent = "Recorded on " + current.attendance_date + " at " + current.check_in + ".";
+      time.textContent = "Recorded on " + current.attendance_date + " at " + String(current.check_in || "").slice(0, 5) + ".";
       badge.textContent = current.status;
       badge.className = "status-pill " + current.status.toLowerCase();
       if (initialized && knownRecordId !== current.id) {
@@ -34,7 +34,7 @@
     body.replaceChildren();
     (data.records || []).forEach(function(record) {
       const row = document.createElement("tr");
-      [record.attendance_date, record.check_in].forEach(function(value) {
+      [record.attendance_date, String(record.check_in || "").slice(0, 5)].forEach(function(value) {
         const cell = document.createElement("td");
         cell.textContent = value || "—";
         row.appendChild(cell);

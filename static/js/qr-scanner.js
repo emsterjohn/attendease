@@ -80,7 +80,7 @@
       confirmButton.textContent = data.already_recorded ? "Already recorded" : "Confirm attendance";
       if (data.already_recorded) {
         showResult(data.full_name + " has already been marked " + data.existing_status +
-          " today at " + data.existing_time + ".", "warning");
+          " today at " + String(data.existing_time || "").slice(0, 5) + ".", "warning");
       } else {
         showResult("QR code identified: " + data.full_name + ". Confirm the student's identity below.", "success");
       }
@@ -165,7 +165,7 @@
       confirmation.classList.add("d-none");
       if (response.ok && data.ok) {
         showResult("Attendance recorded. " + data.full_name + " is " + data.status +
-          ". Scan time: " + data.check_in + ".", "success");
+          ". Scan time: " + String(data.check_in || "").slice(0, 5) + ".", "success");
       } else {
         showResult((data.full_name || nameField.textContent) + ": " +
           (data.message || "Attendance could not be recorded."), "warning");

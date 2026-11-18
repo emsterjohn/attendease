@@ -77,7 +77,7 @@ def process_daily_absences():
         cutoff = time.fromisoformat(schedule["absent_cutoff"])
         if now.time().replace(tzinfo=None) < cutoff:
             return 0
-        absent_time = cutoff.strftime("%H:%M:%S")
+        absent_time = cutoff.strftime("%H:%M")
         students = db.execute("SELECT id FROM users WHERE role='student'").fetchall()
         inserted = 0
         for student in students:
@@ -307,7 +307,7 @@ def record_attendance(user, method):
                 """INSERT INTO attendance
                 (user_id, attendance_date, check_in, status, method)
                 VALUES (?, ?, ?, ?, ?)""",
-                (user["id"], today, now.strftime("%H:%M:%S"), status, method)
+                (user["id"], today, now.strftime("%H:%M"), status, method)
             )
         return True, f"Attendance recorded: {status}.", status
     except sqlite3.IntegrityError:
@@ -806,7 +806,7 @@ def manual_attendance():
                 """INSERT INTO attendance
                 (user_id, attendance_date, check_in, status, method)
                 VALUES (?, ?, ?, ?, 'Manual')""",
-                (user_id, selected_date, school_now().strftime("%H:%M:%S"), status)
+                (user_id, selected_date, school_now().strftime("%H:%M"), status)
             )
             flash("Attendance saved.", "success")
         except sqlite3.IntegrityError:

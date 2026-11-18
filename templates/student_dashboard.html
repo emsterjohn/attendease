@@ -11,7 +11,7 @@
 </div>
 <div class="content-card"><h2 class="section-title mb-3">Attendance history</h2><div class="table-responsive"><table class="table">
 <thead><tr><th>Date</th><th>Check-in</th><th>Status</th><th>Method</th></tr></thead><tbody id="student-history-body">
-{% for r in records %}<tr><td>{{ r.attendance_date }}</td><td>{{ r.check_in }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
+{% for r in records %}<tr><td>{{ r.attendance_date }}</td><td>{{ r.check_in[:5] if r.check_in else "—" }}</td><td><span class="status-pill {{ r.status|lower }}">{{ r.status }}</span></td><td>{{ r.method }}</td></tr>
 {% else %}<tr><td colspan="4" class="empty-state">No attendance history yet.</td></tr>{% endfor %}
 </tbody></table></div></div>
 {% endblock %}

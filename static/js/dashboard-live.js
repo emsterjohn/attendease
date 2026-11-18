@@ -24,7 +24,7 @@
       body.replaceChildren();
       (data.recent || []).forEach(function(record) {
         const row = document.createElement("tr");
-        [record.full_name, record.student_id, record.attendance_date, record.check_in].forEach(function(value, index) {
+        [record.full_name, record.student_id, record.attendance_date, String(record.check_in || "").slice(0, 5)].forEach(function(value, index) {
           const cell = document.createElement("td");
           cell.textContent = value || "—";
           if (index === 0) cell.className = "fw-semibold";
