@@ -428,6 +428,59 @@ def dashboard():
         return render_template("student_dashboard.html", records=mine, counts=counts)
 
 
+@app.route("/api/dashboard/live")
+@login_required
+def dashboard_live():
+    """Return current attendance data for live dashboard updates."""
+    user = get_current_user()
+    today = school_now().date().isoformat()
+    process_daily_absences()
+    with get_db() as db:
+        if user["role"] in ("admin", "teacher"):
+            students = db.execute(
+                """SELECT u.id, u.student_id, u.full_name, a.status, a.check_in,
+                          a.id AS attendance_id
+                   FROM users u LEFT JOIN attendance a
+                     ON a.user_id=u.id AND a.attendance_date=?
+                   WHERE u.role='student'
+                   ORDER BY u.full_name COLLATE NOCASE, u.student_id""",
+                (today,)
+            ).fetchall()
+            counts = {"total": len(students), "present": 0, "late": 0, "absent": 0}
+            for row in students:
+                if row["status"] == "Present": counts["present"] += 1
+                elif row["status"] == "Late": counts["late"] += 1
+                elif row["status"] == "Absent": counts["absent"] += 1
+            recent = db.execute(
+                """SELECT a.id, a.attendance_date, a.check_in, a.status, a.method,
+                          u.full_name, u.student_id
+                   FROM attendance a JOIN users u ON u.id=a.user_id
+                   WHERE a.attendance_date=?
+                   ORDER BY a.check_in DESC, a.id DESC LIMIT 12""", (today,)
+            ).fetchall()
+            return {"ok": True, "role": user["role"], "date": today,
+                    "counts": counts, "students": [dict(r) for r in students],
+                    "recent": [dict(r) for r in recent],
+                    "session_status": get_attendance_session(db, today),
+                    "schedule": get_schedule(db, today)}
+        current = db.execute(
+            "SELECT id, attendance_date, check_in, status, method FROM attendance WHERE user_id=? AND attendance_date=?",
+            (user["id"], today)
+        ).fetchone()
+        records = db.execute(
+            """SELECT a.id, a.attendance_date, a.check_in, a.status, a.method
+               FROM attendance a WHERE a.user_id=? AND NOT EXISTS (
+                 SELECT 1 FROM student_hidden_absences h
+                 WHERE h.student_id=a.user_id AND h.attendance_id=a.id
+               ) ORDER BY a.attendance_date DESC LIMIT 30""", (user["id"],)
+        ).fetchall()
+        counts = {"present": 0, "late": 0, "absent": 0}
+        for row in records: counts[row["status"].lower()] += 1
+        return {"ok": True, "role": "student", "date": today,
+                "current": dict(current) if current else None,
+                "records": [dict(r) for r in records], "counts": counts}
+
+
 @app.route("/profile")
 @roles_required("student")
 def profile():
