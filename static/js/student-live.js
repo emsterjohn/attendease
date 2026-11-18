@@ -48,6 +48,7 @@
       const methodCell = document.createElement("td");
       methodCell.textContent = record.method || "—";
       row.appendChild(methodCell);
+      body.appendChild(row);
     });
     if (!body.children.length) {
       const row = document.createElement("tr");
