@@ -155,3 +155,24 @@ body { font-family:Inter,system-ui,sans-serif; background:var(--bg); color:#1d29
  .table{min-width:580px;}
  .btn{min-height:40px;}
 }
+
+
+@media (max-width: 991.98px) {
+  .sidebar.offcanvas-lg { width: min(82vw, 300px); height: 100vh; background: #fff; padding: 18px 16px; }
+  .sidebar .offcanvas-body { overflow-y: auto; }
+  .app-shell { display: block; min-height: calc(100vh - 68px); }
+  .main-content { width: 100%; min-width: 0; }
+  .page-container { padding: 20px 14px; }
+  .page-heading { align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .content-card { overflow: hidden; }
+  .scanner-card, #reader { max-width: 100%; }
+}
+@media (max-width: 575.98px) {
+  .navbar-brand { font-size: 17px; }
+  .page-container { padding: 18px 12px; }
+  .page-heading h1 { font-size: 25px; }
+  .stat-card { padding: 15px; }
+  .stat-value { font-size: 27px; }
+  .table { min-width: 580px; }
+  .btn { min-height: 40px; }
+}
