@@ -3,14 +3,14 @@
 {% block content %}
 <div class="page-heading">
   <div><span class="eyebrow">SCHOOL-WIDE SETTINGS</span><h1>Daily attendance schedule</h1>
-  <p>One shared daily cutoff schedule for all classes and teachers. Times use Philippine time.</p></div>
+  </div>
 </div>
 <div class="content-card mb-4">
   <form method="post">
     <div class="row g-3">
-      <div class="col-md-4"><label class="form-label fw-semibold" for="present_cutoff">Present cutoff</label><input class="form-control" type="time" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required></div>
-      <div class="col-md-4"><label class="form-label fw-semibold" for="late_cutoff">Late cutoff</label><input class="form-control" type="time" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required></div>
-      <div class="col-md-4"><label class="form-label fw-semibold" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="time" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required></div>
+      <div class="col-md-4"><label class="form-label fw-semibold" for="present_cutoff">Present cutoff</label><input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" data-time-input class="form-control time-numeric" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required></div>
+      <div class="col-md-4"><label class="form-label fw-semibold" for="late_cutoff">Late cutoff</label><input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" data-time-input class="form-control time-numeric" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required></div>
+      <div class="col-md-4"><label class="form-label fw-semibold" for="absent_cutoff">Absent cutoff</label><input type="text" inputmode="numeric" autocomplete="off" maxlength="5" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" data-time-input class="form-control time-numeric" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required></div>
     </div>
     
     <button class="btn btn-primary" type="submit">Save school-wide schedule</button>
