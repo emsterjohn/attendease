@@ -28,7 +28,6 @@
       {% if current_user.role in ['admin','teacher'] %}
         <a href="{{ url_for('students') }}" class="side-link">♙ <span>Users</span></a>
         <a href="{{ url_for('attendance') }}" class="side-link">◷ <span>Attendance</span></a>
-        <a href="{{ url_for('scan') }}" class="side-link">▣ <span>QR Scanner</span></a>
         <a href="{{ url_for('reports') }}" class="side-link">▤ <span>Reports</span></a>
         {% if current_user.role == "admin" %}<button type="button" class="side-link w-100 text-start border-0 bg-transparent text-danger" data-bs-toggle="modal" data-bs-target="#resetDataModal">⚠ <span>Reset all data</span></button>{% endif %}
       {% else %}
