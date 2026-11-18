@@ -18,12 +18,12 @@
 {% endif %}
 <div class="content-card">
   <div class="table-responsive"><table class="table align-middle">
-    <thead><tr><th>Account ID</th><th>Full name</th><th>Role</th>{% if current_user.role == 'admin' %}<th>Action</th>{% endif %}</tr></thead>
+    <thead><tr><th>Account ID</th><th>Full name</th><th>Role</th><th>Profile</th>{% if current_user.role == 'admin' %}<th>Action</th>{% endif %}</tr></thead>
     <tbody>{% for u in students %}<tr>
       <td>{{ u.student_id }}</td><td class="fw-semibold">{{ u.full_name }}</td><td>{{ u.role|title }}</td>
       <td>{% if u.role == 'student' %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('student_profile', user_id=u.id) }}">Profile</a>{% else %}<span class="text-secondary">—</span>{% endif %}</td>
       {% if current_user.role == 'admin' %}<td><form method="post" action="{{ url_for('delete_user', user_id=u.id) }}" onsubmit="return confirm('Delete this {{ u.role }} account and its linked attendance records?')"><button class="btn btn-sm btn-outline-danger">Delete</button></form></td>{% endif %}
-    </tr>{% else %}<tr><td colspan="5" class="empty-state">No user accounts registered yet.</td></tr>{% endfor %}</tbody>
+    </tr>{% else %}<tr><td colspan="{% if current_user.role == 'admin' %}5{% else %}4{% endif %}" class="empty-state">No user accounts registered yet.</td></tr>{% endfor %}</tbody>
   </table></div>
 </div>
 {% endblock %}
