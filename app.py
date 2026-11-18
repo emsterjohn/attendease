@@ -628,7 +628,7 @@ def attendance():
             }
         return render_template(
             "attendance.html", view="setup", selected_date=today,
-            schedule=schedule
+            today=today, schedule=schedule
         )
 
     return render_template("attendance.html", view="landing")
