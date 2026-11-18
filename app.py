@@ -821,9 +821,19 @@ def api_scan_preview():
         return {"ok": False, "message": "No QR token was received."}, 400
     today = school_now().date().isoformat()
     with get_db() as db:
-        if get_attendance_session(db, today) != "Open" or not get_schedule(db, today):
+        schedule = get_schedule(db, today)
+        if get_attendance_session(db, today) != "Open" or not schedule:
             return {"ok": False, "message": "Attendance is closed or has not been configured by the teacher."}, 403
-    process_daily_absences()
+
+    current_time = school_now().time().replace(tzinfo=None)
+    start_time = time.fromisoformat(schedule["present_cutoff"])
+    absent_time = time.fromisoformat(schedule["absent_cutoff"])
+    if current_time < start_time:
+        return {"ok": False, "message": f"Attendance scanning starts at {start_time.strftime('%H:%M')}."}, 403
+    if current_time >= absent_time:
+        process_daily_absences()
+        return {"ok": False, "message": "The attendance cutoff has passed. Unscanned students are marked Absent."}, 403
+
     with get_db() as db:
         student = db.execute(
             "SELECT id, student_id, full_name FROM users WHERE qr_token=? AND role='student'",
