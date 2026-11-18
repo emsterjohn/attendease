@@ -188,14 +188,14 @@ body { font-family:Inter,system-ui,sans-serif; background:var(--bg); color:#1d29
 }
 .time-numeric { font-variant-numeric: tabular-nums; letter-spacing: .06em; }
 
-/* Flush-left mobile navigation drawer */
+/* Flush-left mobile navigation drawer: no left inset on menu items */
 @media (max-width: 991.98px) {
   .sidebar.offcanvas-lg {
     width: min(82vw, 300px);
     padding: 0 !important;
   }
   .sidebar .offcanvas-header {
-    padding: 14px 12px;
+    padding: 12px 0;
     border-bottom: 1px solid #e8edf4;
   }
   .sidebar .offcanvas-body {
@@ -203,14 +203,15 @@ body { font-family:Inter,system-ui,sans-serif; background:var(--bg); color:#1d29
     align-items: stretch;
   }
   .sidebar-label {
-    padding: 14px 12px 8px;
+    padding: 12px 0 8px;
   }
   .sidebar .side-link {
+    display: flex;
     width: 100%;
     justify-content: flex-start;
-    gap: 10px;
+    gap: 8px;
     margin: 0;
-    padding: 13px 12px;
+    padding: 13px 0 !important;
     border-radius: 0;
     text-align: left;
   }
