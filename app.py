@@ -727,7 +727,7 @@ def delete_attendance(record_id):
         flash("Attendance record removed successfully.", "success")
     else:
         flash("That attendance record could not be found.", "warning")
-    return redirect(url_for("attendance", date=selected_date))
+    return redirect(url_for("attendance", view="records", date=selected_date))
 
 
 @app.route("/attendance/manual", methods=["POST"])
@@ -763,13 +763,22 @@ def manual_attendance():
                 (status, user_id, selected_date)
             )
             flash("Existing attendance record updated.", "info")
-    return redirect(url_for("attendance", date=selected_date))
+    return redirect(url_for("attendance", view="records", date=selected_date))
 
 
 @app.route("/attendance-schedule", methods=["GET", "POST"])
 @roles_required("admin", "teacher")
 def attendance_schedule():
     return redirect(url_for("attendance"))
+
+
+@app.route("/api/attendance/heartbeat", methods=["POST"])
+@roles_required("admin", "teacher")
+def attendance_heartbeat():
+    """Process time-based absences while the teacher's attendance screen is active."""
+    inserted = process_daily_absences()
+    return {"ok": True, "absences_created": inserted,
+            "school_date": school_now().date().isoformat()}
 
 
 @app.route("/tasks/process-absences", methods=["POST"])
