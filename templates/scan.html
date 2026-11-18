@@ -26,6 +26,7 @@
     </div>
   </section>
   {% endif %}
+  {% if session_open %}
   <div class="content-card mt-4" id="live-attendance-list">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div><h2 class="section-title">Registered students</h2><p class="small text-secondary mb-0">Live attendance status · Alphabetical order</p></div>
@@ -34,6 +35,8 @@
     <input type="search" class="form-control mb-3" id="scan-student-search" placeholder="Search by student name or ID" aria-label="Search students">
     <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Student</th><th>Student ID</th><th>Status</th><th>Time</th></tr></thead><tbody id="scan-student-rows"><tr><td colspan="4" class="empty-state">Loading student list…</td></tr></tbody></table></div>
   </div>
+  {% endif %}
+
 </div>
 {% endblock %}
 {% block scripts %}

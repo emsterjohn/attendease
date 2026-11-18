@@ -7,12 +7,8 @@
   const cancelButton = document.getElementById("cancel-scan");
   const flipButton = document.getElementById("flip-camera");
   const searchInput = document.getElementById("scan-student-search");
-  if (!window.Html5Qrcode) {
-    resultBox.className = "alert alert-danger mt-3";
-    resultBox.textContent = "The QR scanner could not load. Check your internet connection.";
-    return;
-  }
-  const scanner = new Html5Qrcode("reader");
+  const scanner = window.Html5Qrcode ? new Html5Qrcode("reader") : null;
+  if (!scanner) showResult("The QR scanner could not load. Check your internet connection.", "danger");
   let cameras = [];
   let cameraIndex = 0;
   let scannerRunning = false;
@@ -27,7 +23,7 @@
   }
 
   async function startScanner() {
-    if (scannerRunning || busy) return;
+    if (!scanner || scannerRunning || busy) return;
     try {
       if (!cameras.length) cameras = await Html5Qrcode.getCameras();
       if (!cameras.length) {
