@@ -1,65 +1,72 @@
 {% extends "base.html" %}
-{% block title %}Attendance Management · AttendEase{% endblock %}
-{% block scripts %}
-<script>
-document.querySelectorAll('input[name="present_cutoff"],input[name="late_cutoff"],input[name="absent_cutoff"]').forEach(function(field){
- field.value=(field.value||"").replace(/[^0-9]/g,"").slice(0,4).replace(/^(\d{2})(\d)/,"$1:$2");
- field.addEventListener("input",function(){
-   const digits=field.value.replace(/[^0-9]/g,"").slice(0,4);
-   field.value=digits.length>2?digits.slice(0,2)+":"+digits.slice(2):digits;
-   field.setCustomValidity("");
- });
- field.addEventListener("blur",function(){
-   const v=field.value,parts=v.split(":"),h=Number(parts[0]),m=Number(parts[1]);
-   field.setCustomValidity(/^\d{2}:\d{2}$/.test(v)&&h<=23&&m<=59?"":"Enter time in HH:MM 24-hour format, e.g. 07:30.");
- });
-});
-</script>
-{% endblock %}
+{% block title %}Attendance · AttendEase{% endblock %}
 {% block content %}
+{% if view == "landing" %}
 <div class="page-heading">
-  <div><span class="eyebrow">ATTENDANCE WORKSPACE</span><h1>Attendance management</h1><p>Configure a school date, then open or close its attendance session.</p></div>
-  {% if session_status == 'Open' and is_today %}<a class="btn btn-primary" href="{{ url_for('scan') }}">Open QR scanner</a>{% endif %}
+  <div><span class="eyebrow">ATTENDANCE</span><h1>Attendance</h1></div>
 </div>
-<div class="content-card mb-4">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div><div class="small text-secondary fw-semibold">SESSION STATUS</div><div class="h3 mb-1">{% if session_status == 'Open' %}<span class="text-success">Attendance Open</span>{% else %}<span class="text-secondary">Attendance Closed</span>{% endif %}</div><p class="small text-secondary mb-0">{% if session_status == 'Open' and schedule_saved %}Session is open. Attendance can now be tracked for this date.{% elif session_status == 'Open' %}Session setup is open. Save the date and cutoff times below to enable attendance marking.{% else %}Attendance marking is disabled until the teacher opens this session.{% endif %}</p></div>
-    <div>{% if session_status == 'Open' %}<form method="post" action="{{ url_for('close_attendance_session') }}" onsubmit="return confirm('Close attendance for this date?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-outline-danger">Close attendance</button></form>{% else %}<form method="post" action="{{ url_for('open_attendance_session') }}" onsubmit="return confirm('Open attendance for this date?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-success" {% if not is_today %}disabled{% endif %}>Open attendance</button></form>{% endif %}</div>
-  </div>
-  {% if not schedule_saved %}<div class="alert alert-warning mt-3 mb-0">{% if session_status == 'Open' %}Attendance is open for setup, but marking remains blocked until all cutoff times are saved.{% else %}Open attendance first, then save the date and all cutoff times below.{% endif %}</div>{% elif not is_today and session_status != 'Open' %}<div class="small text-secondary mt-2">You can prepare this schedule in advance. The session can be opened on its scheduled date.</div>{% endif %}
+<div class="content-card text-center py-5">
+  <div class="mb-3"><span class="brand-mark">✓</span></div>
+  <h2 class="section-title mb-2">Ready to take attendance?</h2>
+  <p class="text-secondary mb-4">Set today's attendance times to begin.</p>
+  <a class="btn btn-primary btn-lg px-4" href="{{ url_for('attendance', view='setup') }}">Open Attendance</a>
 </div>
-<div class="content-card mb-4">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><h2 class="section-title mb-1">Daily attendance settings</h2><p class="small text-secondary mb-0">Save the date and cutoffs before opening attendance. Times use Philippine time.</p></div>
-    <span class="badge text-bg-light">Selected date: {{ selected_date }}</span>
-  </div>
-  <form method="get" action="{{ url_for('attendance') }}" class="row g-2 align-items-end mb-3">
-    <div class="col-sm-5 col-md-4"><label class="form-label" for="schedule-date">Attendance date</label><input id="schedule-date" class="form-control" type="date" name="date" value="{{ selected_date }}" required></div>
-    <div class="col-auto"><button class="btn btn-outline-primary">Load date</button></div>
+{% elif view == "setup" %}
+<div class="page-heading">
+  <div><span class="eyebrow">ATTENDANCE SETUP</span><h1>Set attendance times</h1><p>Choose when scanning starts and when students become late or absent.</p></div>
+</div>
+<div class="content-card">
+  <form method="post" action="{{ url_for('save_attendance_schedule') }}" class="row g-3">
+    <div class="col-12">
+      <label class="form-label" for="attendance-date">Attendance date</label>
+      <input class="form-control" id="attendance-date" type="date" name="attendance_date" value="{{ selected_date }}" min="{{ today }}" max="{{ today }}" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="present_cutoff">Present start time</label>
+      <input class="form-control" id="present_cutoff" type="time" name="present_cutoff" value="{{ schedule.present_cutoff }}" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="late_cutoff">Late start time</label>
+      <input class="form-control" id="late_cutoff" type="time" name="late_cutoff" value="{{ schedule.late_cutoff }}" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="absent_cutoff">Absent cutoff time</label>
+      <input class="form-control" id="absent_cutoff" type="time" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required>
+    </div>
+    <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+      <button class="btn btn-primary" type="submit">Save and Start Attendance</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('attendance') }}">Cancel</a>
+    </div>
   </form>
-  <form method="post" action="{{ url_for('save_attendance_schedule') }}" class="row g-3 align-items-end">
-    <input type="hidden" name="attendance_date" value="{{ selected_date }}">
-    <div class="col-md-4"><label class="form-label" for="present_cutoff">Present cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" placeholder="07:30" autocomplete="off" id="present_cutoff" name="present_cutoff" value="{{ schedule.present_cutoff }}" required></div>
-    <div class="col-md-4"><label class="form-label" for="late_cutoff">Late cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" placeholder="08:00" autocomplete="off" id="late_cutoff" name="late_cutoff" value="{{ schedule.late_cutoff }}" required></div>
-    <div class="col-md-4"><label class="form-label" for="absent_cutoff">Absent cutoff</label><input class="form-control" type="text" inputmode="numeric" pattern="[0-9]{2}:[0-9]{2}" maxlength="5" placeholder="08:01" autocomplete="off" id="absent_cutoff" name="absent_cutoff" value="{{ schedule.absent_cutoff }}" required></div>
-    <div class="col-12 d-flex flex-wrap align-items-center gap-2"><button class="btn btn-primary" type="submit">Save schedule for this date</button></div>
+  <p class="small text-secondary mt-3 mb-0">Times use Philippine time. Scanning is available from the Present start time until the Absent cutoff.</p>
+</div>
+{% elif view == "records" %}
+<div class="page-heading">
+  <div><span class="eyebrow">ATTENDANCE RECORDS</span><h1>Attendance records</h1><p>Review and manage student attendance for the selected date.</p></div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('attendance') }}">Back to Attendance</a>
+</div>
+<div class="content-card mb-4">
+  <form method="get" action="{{ url_for('attendance') }}" class="row g-2 align-items-end">
+    <input type="hidden" name="view" value="records">
+    <div class="col-sm-6 col-md-4"><label class="form-label" for="records-date">Attendance date</label><input id="records-date" class="form-control" type="date" name="date" value="{{ selected_date }}" required></div>
+    <div class="col-auto"><button class="btn btn-outline-primary">Load date</button></div>
   </form>
 </div>
 <div class="content-card mb-4">
   <h2 class="section-title mb-3">Manual attendance entry</h2>
-  {% if session_status != 'Open' %}<div class="alert alert-secondary">Manual marking is disabled while attendance is closed.</div>{% endif %}
   <form method="post" action="{{ url_for('manual_attendance') }}" class="row g-3 align-items-end">
     <div class="col-md-5"><label class="form-label">Student</label><select class="form-select" name="user_id" required><option value="">Choose student</option>{% for s in students %}<option value="{{ s.id }}">{{ s.student_id }} — {{ s.full_name }}</option>{% endfor %}</select></div>
     <div class="col-md-3"><label class="form-label">Date</label><input class="form-control" type="date" name="attendance_date" value="{{ selected_date }}" required></div>
     <div class="col-md-2"><label class="form-label">Status</label><select class="form-select" name="status"><option>Present</option><option>Late</option><option>Absent</option></select></div>
-    <div class="col-md-2"><button class="btn btn-primary w-100" {% if session_status != 'Open' or not schedule_saved %}disabled{% endif %}>Save record</button></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Save record</button></div>
   </form>
 </div>
 <div class="content-card">
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2"><div><h2 class="section-title mb-1">Student attendance records</h2><p class="small text-secondary mb-0">Records for {{ selected_date }}</p></div></div>
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2"><div><h2 class="section-title mb-1">Student attendance list</h2><p class="small text-secondary mb-0">Alphabetical order · {{ selected_date }}</p></div></div>
   <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Student</th><th>Student ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th><th>Action</th></tr></thead><tbody>
-  {% for r in records %}<tr><td class="fw-semibold">{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date or selected_date }}</td><td>{{ r.check_in or '—' }}</td><td>{% if r.status %}<span class="status-pill {{ r.status|lower }}">{{ r.status }}</span>{% else %}<span class="status-pill unrecorded">Not recorded</span>{% endif %}</td><td>{{ r.method or '—' }}</td><td>{% if r.attendance_id %}<form method="post" action="{{ url_for('delete_attendance', record_id=r.attendance_id) }}" onsubmit="return confirm('Remove this attendance record?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="text-secondary">—</span>{% endif %}</td></tr>
-  {% else %}<tr><td colspan="7" class="empty-state">No student accounts found.</td></tr>{% endfor %}
+  {% for r in records %}<tr><td class="fw-semibold">{{ r.full_name }}</td><td>{{ r.student_id }}</td><td>{{ r.attendance_date or selected_date }}</td><td>{{ r.check_in or '—' }}</td><td>{% if r.status %}<span class="status-pill {{ r.status|lower }}">{{ r.status }}</span>{% else %}<span class="status-pill unrecorded">Not yet scanned</span>{% endif %}</td><td>{{ r.method or '—' }}</td><td>{% if r.attendance_id %}<form method="post" action="{{ url_for('delete_attendance', record_id=r.attendance_id) }}" onsubmit="return confirm('Remove this attendance record?')"><input type="hidden" name="attendance_date" value="{{ selected_date }}"><button class="btn btn-sm btn-outline-danger">Remove</button></form>{% else %}<span class="text-secondary">—</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="empty-state">No registered students found.</td></tr>{% endfor %}
   </tbody></table></div>
 </div>
+{% endif %}
 {% endblock %}

@@ -26,9 +26,9 @@ app.config.update(
 )
 
 SCHOOL_TZ = ZoneInfo("Asia/Manila")
-DEFAULT_PRESENT_CUTOFF = "07:30"
-DEFAULT_LATE_CUTOFF = "08:00"
-DEFAULT_ABSENT_CUTOFF = "08:01"
+DEFAULT_PRESENT_CUTOFF = "08:00"
+DEFAULT_LATE_CUTOFF = "08:15"
+DEFAULT_ABSENT_CUTOFF = "08:45"
 
 
 def school_now():
@@ -269,29 +269,38 @@ def roles_required(*roles):
 
 
 def attendance_status(check_time=None, schedule=None):
+    """Return Present/Late during the valid scan window, otherwise None."""
     check_time = check_time or school_now().time().replace(tzinfo=None)
     schedule = schedule or get_schedule()
-    present_cutoff = time.fromisoformat(schedule["present_cutoff"])
-    late_cutoff = time.fromisoformat(schedule["late_cutoff"])
-    if check_time <= present_cutoff:
-        return "Present"
-    if check_time <= late_cutoff:
-        return "Late"
-    return None
+    start_time = time.fromisoformat(schedule["present_cutoff"])
+    late_time = time.fromisoformat(schedule["late_cutoff"])
+    absent_time = time.fromisoformat(schedule["absent_cutoff"])
+    if check_time < start_time or check_time >= absent_time:
+        return None
+    return "Present" if check_time < late_time else "Late"
 
 
 def record_attendance(user, method):
     now = school_now()
     today = now.date().isoformat()
+    scan_time = now.time().replace(tzinfo=None)
+
     with get_db() as db:
         if get_attendance_session(db, today) != "Open":
             return False, "Attendance is currently closed by the teacher.", None
         schedule = get_schedule(db, today)
+
     if not schedule:
         return False, "The teacher has not configured attendance for today.", None
-    status = attendance_status(now.time().replace(tzinfo=None), schedule)
-    if status is None:
-        return False, "The attendance cutoff has passed. Please contact a teacher for manual attendance.", None
+
+    start_time = time.fromisoformat(schedule["present_cutoff"])
+    absent_time = time.fromisoformat(schedule["absent_cutoff"])
+    if scan_time < start_time:
+        return False, f"Attendance scanning starts at {start_time.strftime('%H:%M')}.", None
+    if scan_time >= absent_time:
+        return False, "The attendance cutoff has passed. Please contact a teacher for assistance.", None
+
+    status = attendance_status(scan_time, schedule)
     try:
         with get_db() as db:
             db.execute(
@@ -303,7 +312,6 @@ def record_attendance(user, method):
         return True, f"Attendance recorded: {status}.", status
     except sqlite3.IntegrityError:
         return False, "Attendance has already been recorded today.", None
-
 
 @app.context_processor
 def inject_globals():
@@ -521,39 +529,56 @@ def delete_user(user_id):
 @app.route("/attendance")
 @roles_required("admin", "teacher")
 def attendance():
-    selected_date = request.args.get("date", school_now().date().isoformat())
-    try:
-        date.fromisoformat(selected_date)
-    except ValueError:
-        abort(400)
+    today = school_now().date().isoformat()
+    view = request.args.get("view", "landing")
+
+    if view == "records":
+        selected_date = request.args.get("date", today)
+        try:
+            date.fromisoformat(selected_date)
+        except ValueError:
+            abort(400)
+        with get_db() as db:
+            rows = db.execute(
+                """SELECT u.id AS user_id, u.full_name, u.student_id,
+                a.id AS attendance_id, a.attendance_date, a.check_in,
+                a.status, a.method
+                FROM users u
+                LEFT JOIN attendance a
+                  ON a.user_id=u.id AND a.attendance_date=?
+                WHERE u.role='student'
+                ORDER BY u.full_name COLLATE NOCASE, u.student_id""",
+                (selected_date,)
+            ).fetchall()
+            students = db.execute(
+                """SELECT id, student_id, full_name FROM users
+                   WHERE role='student' ORDER BY full_name COLLATE NOCASE, student_id"""
+            ).fetchall()
+        return render_template(
+            "attendance.html", view="records", records=rows,
+            students=students, selected_date=selected_date
+        )
+
     with get_db() as db:
-        rows = db.execute(
-            """SELECT u.id AS user_id, u.full_name, u.student_id,
-            a.id AS attendance_id, a.attendance_date, a.check_in,
-            a.status, a.method
-            FROM users u
-            LEFT JOIN attendance a
-              ON a.user_id=u.id AND a.attendance_date=?
-            WHERE u.role='student'
-            ORDER BY u.full_name""", (selected_date,)
-        ).fetchall()
-        student_rows = db.execute(
-            "SELECT id, student_id, full_name FROM users WHERE role='student' ORDER BY full_name"
-        ).fetchall()
-        schedule = get_schedule(db, selected_date)
-        session_status = get_attendance_session(db, selected_date)
-        schedule_saved = schedule is not None
+        schedule = get_schedule(db, today)
+        session_status = get_attendance_session(db, today)
+
+    if session_status == "Open" and schedule:
+        return redirect(url_for("scan"))
+
+    if view == "setup":
         if not schedule:
             schedule = {
                 "present_cutoff": DEFAULT_PRESENT_CUTOFF,
                 "late_cutoff": DEFAULT_LATE_CUTOFF,
                 "absent_cutoff": DEFAULT_ABSENT_CUTOFF,
             }
-    return render_template("attendance.html", records=rows, students=student_rows,
-                           selected_date=selected_date, schedule=schedule,
-                           schedule_saved=schedule_saved, session_status=session_status,
-                           is_today=(selected_date == school_now().date().isoformat()))
+        return render_template(
+            "attendance.html", view="setup", selected_date=today,
+            schedule=schedule
+        )
 
+    return render_template("attendance.html", view="landing")
 
 @app.route("/attendance/schedule", methods=["POST"])
 @roles_required("admin", "teacher")
@@ -566,22 +591,34 @@ def save_attendance_schedule():
     }
     try:
         date.fromisoformat(selected_date)
+        if selected_date != school_now().date().isoformat():
+            raise ValueError("Attendance can only be opened for today.")
         for key, raw in values.items():
             digits = raw.replace(":", "")
-            if len(digits) != 4 or not digits.isdigit():
-                raise ValueError("Enter four digits, for example 0730.")
+            if len(digits) != 4 || !digits.isdigit():
+                raise ValueError("Enter a valid time in HH:MM format.")
             values[key] = f"{digits[:2]}:{digits[2:]}"
-        present = time.fromisoformat(values["present_cutoff"])
-        late = time.fromisoformat(values["late_cutoff"])
-        absent = time.fromisoformat(values["absent_cutoff"])
+        start_time = time.fromisoformat(values["present_cutoff"])
+        late_time = time.fromisoformat(values["late_cutoff"])
+        absent_time = time.fromisoformat(values["absent_cutoff"])
     except ValueError:
-        flash("Choose a valid date and enter all three cutoff times.", "danger")
-        return redirect(url_for("attendance"))
-    if not (present < late < absent):
-        flash("Cutoff times must be ordered: Present, then Late, then Absent.", "danger")
-        return redirect(url_for("attendance", date=selected_date))
+        flash("Choose today's date and enter all three valid cutoff times.", "danger")
+        return redirect(url_for("attendance", view="setup"))
+
+    if not (start_time < late_time < absent_time):
+        flash("Times must be ordered: Present start, Late start, then Absent cutoff.", "danger")
+        return redirect(url_for("attendance", view="setup"))
+
     changed_at = school_now().isoformat(timespec="seconds")
     with get_db() as db:
+        existing_records = db.execute(
+            "SELECT 1 FROM attendance WHERE attendance_date=? LIMIT 1",
+            (selected_date,)
+        ).fetchone()
+        if existing_records:
+            flash("The schedule is locked because attendance has already been recorded.", "warning")
+            return redirect(url_for("attendance", view="records", date=selected_date))
+
         db.execute(
             """INSERT INTO attendance_schedules
                (attendance_date, present_cutoff, late_cutoff, absent_cutoff, updated_by, updated_at)
@@ -595,9 +632,18 @@ def save_attendance_schedule():
             (selected_date, values["present_cutoff"], values["late_cutoff"],
              values["absent_cutoff"], session.get("user_id"), changed_at)
         )
-    flash(f"Attendance schedule saved for {selected_date}. You can now open this date's session.", "success")
-    return redirect(url_for("attendance", date=selected_date))
+        db.execute(
+            """INSERT INTO attendance_sessions
+               (attendance_date, status, opened_by, opened_at, closed_by, closed_at)
+               VALUES (?, 'Open', ?, ?, NULL, NULL)
+               ON CONFLICT(attendance_date) DO UPDATE SET
+                 status='Open', opened_by=excluded.opened_by,
+                 opened_at=excluded.opened_at, closed_by=NULL, closed_at=NULL""",
+            (selected_date, session.get("user_id"), changed_at)
+        )
 
+    flash("Attendance is now open. You can begin scanning student QR codes.", "success")
+    return redirect(url_for("scan"))
 
 @app.route("/attendance/session/open", methods=["POST"])
 @roles_required("admin", "teacher")
