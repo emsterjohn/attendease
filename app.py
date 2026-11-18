@@ -862,7 +862,7 @@ def scan():
             "late_cutoff": DEFAULT_LATE_CUTOFF,
             "absent_cutoff": DEFAULT_ABSENT_CUTOFF,
         }
-    return render_template("scan.html", schedule=schedule, session_open=session_open)
+    return render_template("scan.html", schedule=schedule, session_open=session_open, today=today)
 
 
 @app.route("/api/scan/preview", methods=["POST"])
