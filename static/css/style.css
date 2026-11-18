@@ -176,3 +176,14 @@ body { font-family:Inter,system-ui,sans-serif; background:var(--bg); color:#1d29
   .table { min-width: 580px; }
   .btn { min-height: 40px; }
 }
+
+
+/* Compact edge-aligned desktop navigation */
+@media (min-width: 992px) {
+  .sidebar { width: 218px; flex: 0 0 218px; padding: 18px 8px; }
+  .sidebar-label { padding: 0 10px 10px; }
+  .side-link { gap: 9px; padding: 10px 11px; margin-bottom: 3px; border-radius: 8px; }
+  .sidebar-note { margin: auto 2px 0; padding: 12px; }
+  .page-container { padding: 28px 30px; }
+}
+.time-numeric { font-variant-numeric: tabular-nums; letter-spacing: .06em; }
