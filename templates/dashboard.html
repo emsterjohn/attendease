@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · AttendEase{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/dashboard-live.js') }}"></script>{% endblock %}
 {% block content %}
 <div class="page-heading">
   <div>
@@ -16,25 +17,25 @@
   <div class="col-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-label">Registered students</div>
-      <div class="stat-value">{{ total }}</div>
+      <div class="stat-value" id="live-total">{{ total }}</div>
     </div>
   </div>
   <div class="col-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-label">Present</div>
-      <div class="stat-value text-success">{{ present }}</div>
+      <div class="stat-value text-success" id="live-present">{{ present }}</div>
     </div>
   </div>
   <div class="col-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-label">Late</div>
-      <div class="stat-value text-warning">{{ late }}</div>
+      <div class="stat-value text-warning" id="live-late">{{ late }}</div>
     </div>
   </div>
   <div class="col-6 col-xl-3">
     <div class="stat-card">
       <div class="stat-label">Absent</div>
-      <div class="stat-value text-danger">{{ absent }}</div>
+      <div class="stat-value text-danger" id="live-absent">{{ absent }}</div>
     </div>
   </div>
 </div>
@@ -52,7 +53,7 @@
       <thead>
         <tr><th>Student</th><th>Student ID</th><th>Date</th><th>Time</th><th>Status</th><th>Method</th></tr>
       </thead>
-      <tbody>
+      <tbody id="live-recent">
         {% for r in recent %}
           <tr>
             <td class="fw-semibold">{{ r.full_name }}</td>
