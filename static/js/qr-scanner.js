@@ -76,6 +76,8 @@
       nameField.textContent = data.full_name;
       idField.textContent = data.student_id;
       confirmation.classList.remove("d-none");
+      confirmButton.disabled = Boolean(data.already_recorded);
+      confirmButton.textContent = data.already_recorded ? "Already recorded" : "Confirm attendance";
       if (data.already_recorded) {
         showResult(data.full_name + " has already been marked " + data.existing_status +
           " today at " + data.existing_time + ".", "warning");
@@ -185,8 +187,10 @@
   cancelButton.addEventListener("click", async function() {
     pendingToken = null;
     confirmation.classList.add("d-none");
+    confirmButton.disabled = false;
+    confirmButton.textContent = "Confirm attendance";
     busy = false;
-    showResult("Scan cancelled. You can scan another student.", "secondary");
+    showResult("Ready for the next student.", "secondary");
     await startScanner();
   });
 
